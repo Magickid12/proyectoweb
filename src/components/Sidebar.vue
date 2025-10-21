@@ -18,8 +18,9 @@
       !isLarge && sidebarOpen ? 'translate-x-0' : (!isLarge ? '-translate-x-full' : '')
     ]">
     <div class="flex items-center gap-3 mb-8">
-      <div class="w-10 h-10 rounded bg-yellow-300 flex items-center justify-center text-indigo-800 font-bold">⚡</div>
+      <img src="/icons/logo.png" alt="EVCONNECT" class="w-10 h-10 rounded object-cover" />
       <div class="text-2xl font-extrabold">EVCONNECT</div>
+      <button v-if="isLarge" @click="toggleCollapse" class="ml-auto text-sm text-indigo-200 hover:text-white p-1">{{ sidebarCollapsed ? 'Expandir' : 'Colapsar' }}</button>
     </div>
 
     <nav class="space-y-2">
@@ -59,13 +60,17 @@ export default {
       sidebarOpen.value = true
     }
 
+    const toggleCollapse = () => {
+      sidebarCollapsed.value = !sidebarCollapsed.value
+    }
+
     const logout = () => {
       authLogout();
       // cerrar sidebar
       sidebarOpen.value = false
       router.push('/login');
     }
-    return { logout, sidebarOpen, isLarge, open, sidebarCollapsed, expandFromCollapsed }
+    return { logout, sidebarOpen, isLarge, open, sidebarCollapsed, expandFromCollapsed, toggleCollapse }
   }
 };
 </script>
