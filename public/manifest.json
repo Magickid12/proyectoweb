@@ -1,0 +1,8 @@
+{
+  "name": "EVCONNECT Backoffice Mock",
+  "short_name": "EVCONNECT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5"
+}
