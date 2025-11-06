@@ -6,8 +6,8 @@
       <div class="flex-1">
         <!-- Header móvil -->
         <header class="bg-white p-4 sticky top-0 z-10 lg:hidden flex justify-between items-center">
-          <button @click="toggleSidebar" class="p-2 text-indigo-600 rounded-lg">
-            <i class="fas fa-bars"></i>
+          <button @click="toggleSidebar" class="p-2 rounded-lg mobile-menu-btn">
+            <font-awesome-icon :icon="['fas', 'bars']" />
           </button>
           <h1 class="text-lg font-semibold">EVCONNECT</h1>
           <div></div>
@@ -51,4 +51,13 @@ export default {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 .font-inter { font-family: 'Inter', sans-serif; }
+
+/* Paleta de colores: #2C403A (oscuro), #37A686 (medio), #52F2B8 (claro) */
+.mobile-menu-btn {
+  color: #37A686;
+}
+
+.mobile-menu-btn:hover {
+  color: #2C403A;
+}
 </style>

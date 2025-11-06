@@ -1,9 +1,9 @@
 <template>
   <div class="p-8">
-    <h2 class="text-3xl font-bold mb-4">Inventario de Estaciones (CSMS)</h2>
+    <h2 class="text-3xl font-bold mb-4">Inventario de Cargadores (CSMS)</h2>
     <div class="flex justify-between items-center mb-4">
-      <input placeholder="Buscar Estación..." class="p-3 border rounded w-64" />
-      <button class="bg-indigo-600 text-white px-4 py-2 rounded">+ Agregar Estación</button>
+      <input placeholder="Buscar Cargador..." class="p-3 border rounded w-64" />
+      <button class="bg-indigo-600 text-white px-4 py-2 rounded">+ Agregar Cargador</button>
     </div>
 
     <div class="bg-white p-4 rounded-xl shadow border border-gray-100 overflow-x-auto">
@@ -40,10 +40,10 @@ export default {
   components: { StatusBadge },
   data(){
     return { stations: [
-      { id: 'EV001', location: 'Plaza Mayor', status: 'Cargando', power: '22 kW AC' },
-      { id: 'EV002', location: 'Oficina Central', status: 'Disponible', power: '50 kW DC' },
-      { id: 'EV005', location: 'Centro Histórico', status: 'Falla', power: '7 kW AC' },
-      { id: 'EV008', location: 'Aeropuerto Terminal A', status: 'Mantenimiento', power: '150 kW DC' }
+      { id: 'EV001', location: 'Carga lenta 1', status: 'Cargando', power: '22 kW AC' },
+      { id: 'EV002', location: 'Carga lenta 2', status: 'Disponible', power: '50 kW DC' },
+      { id: 'EV005', location: 'Carga rapida 1', status: 'Falla', power: '7 kW AC' },
+      { id: 'EV008', location: 'Carga rapida 2', status: 'Mantenimiento', power: '150 kW DC' }
     ] }
   }
 }

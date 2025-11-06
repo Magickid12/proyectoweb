@@ -1,0 +1,83 @@
+/* 
+ * Paleta de colores EVCONNECT
+ * Basada en la imagen de referencia proporcionada
+ * 
+ * Colores principales:
+ * - #37A686: Verde medio (principal)
+ * - #2C403A: Verde oscuro (fondo sidebar, texto oscuro)
+ * - #52F2B8: Verde claro (acentos, highlights)
+ * - #F2F2F2: Blanco/Gris claro (fondos)
+ * - #0D0D0D: Negro (texto principal en casos específicos)
+ */
+
+:root {
+  /* Colores principales de la paleta */
+  --color-primary: #37A686;
+  --color-primary-dark: #2C403A;
+  --color-primary-light: #52F2B8;
+  --color-background: #F2F2F2;
+  --color-text-dark: #0D0D0D;
+  --color-white: #FFFFFF;
+  
+  /* Variantes de la paleta para uso específico */
+  --color-sidebar-bg: #2C403A;
+  --color-sidebar-hover: #37A686;
+  --color-sidebar-active: #37A686;
+  --color-accent: #52F2B8;
+  
+  /* Backgrounds claros para cards y badges */
+  --color-bg-light-green: #D5F2E6;
+  --color-bg-light-teal: #D9EEE7;
+  --color-bg-light-mint: #E0F9F2;
+  
+  /* Sombras con los colores de la paleta */
+  --shadow-primary: 0 6px 18px rgba(44, 64, 58, 0.1);
+  --shadow-hover: 0 8px 24px rgba(44, 64, 58, 0.15);
+}
+
+/* Clases de utilidad para usar la paleta */
+.bg-primary { background-color: var(--color-primary); }
+.bg-primary-dark { background-color: var(--color-primary-dark); }
+.bg-primary-light { background-color: var(--color-primary-light); }
+
+.text-primary { color: var(--color-primary); }
+.text-primary-dark { color: var(--color-primary-dark); }
+.text-primary-light { color: var(--color-primary-light); }
+
+.border-primary { border-color: var(--color-primary); }
+.border-primary-dark { border-color: var(--color-primary-dark); }
+.border-primary-light { border-color: var(--color-primary-light); }
+
+/* Botones con la paleta */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  transition: background-color 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+/* Enlaces con la paleta */
+.link-primary {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.link-primary:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}

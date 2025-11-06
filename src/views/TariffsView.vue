@@ -26,7 +26,6 @@ export default {
     return { tariffs: [
       { name: 'Estándar AC', kwh: '2.50' },
       { name: 'Rápida DC Pico', kwh: '4.80' },
-      { name: 'Valle Nocturno', kwh: '1.80' }
     ] }
   }
 }
