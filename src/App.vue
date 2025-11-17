@@ -22,24 +22,35 @@
 
 <script>
 import Sidebar from './components/Sidebar.vue';
-import { onMounted, computed } from 'vue';
-import { isLogged } from '@/stores/auth'
-import { sidebarOpen, openSidebar, closeSidebar, toggleSidebar } from '@/stores/ui'
+import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { isLogged } from '@/stores/auth';
+import { sidebarOpen, openSidebar, closeSidebar, toggleSidebar } from '@/stores/ui';
 
 export default {
   components: { Sidebar },
   setup(){
-    const isLargeScreen = window.innerWidth >= 1024;
+    const router = useRouter();
+    const isLargeScreen = ref(window.innerWidth >= 1024);
 
-    onMounted(()=>{
-      if (isLogged.value && isLargeScreen) openSidebar();
-    })
+    // Actualizar isLargeScreen en resize
+    const onResize = () => {
+      isLargeScreen.value = window.innerWidth >= 1024;
+    };
 
-    // cerrar sidebar en navegación (móvil)
-    import('vue-router').then(({ useRouter }) => {
-      const router = useRouter();
+    onMounted(() => {
+      if (isLogged.value && isLargeScreen.value) {
+        openSidebar();
+      }
+      
+      // Listener para resize
+      window.addEventListener('resize', onResize);
+      
+      // Cerrar sidebar en navegación (móvil)
       router.afterEach(() => {
-        if (!isLargeScreen) closeSidebar();
+        if (!isLargeScreen.value) {
+          closeSidebar();
+        }
       });
     });
 

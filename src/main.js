@@ -6,6 +6,9 @@ import VueCookies from 'vue-cookies';
 /* Importa la paleta de colores global */
 import './assets/palette.css';
 
+/* Importa el plugin de sesión global */
+import sessionPlugin from './plugins/sessionPlugin';
+
 /* Importa la configuración de Font Awesome */
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
@@ -24,7 +27,8 @@ import {
   faCaretLeft,
   faCaretRight,
   faMapMarkerAlt,
-  faBolt
+  faBolt,
+  faHeadset
 } from '@fortawesome/free-solid-svg-icons';
 
 /* Añade los iconos a la librería global */
@@ -41,7 +45,8 @@ library.add(
   faCaretLeft,
   faCaretRight,
   faMapMarkerAlt,
-  faBolt
+  faBolt,
+  faHeadset
 );
 
 const app = createApp(App);
@@ -51,6 +56,7 @@ app.component('font-awesome-icon', FontAwesomeIcon);
 
 app.use(router);
 app.use(VueCookies);
+app.use(sessionPlugin); // Registra el plugin de sesión global ($session)
 app.mount('#app');
 
 // Register service worker (only in production-like env or when available)

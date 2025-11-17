@@ -1,19 +1,33 @@
-import { ref } from 'vue'
-import cookies from 'vue-cookies'
+import { ref, computed } from 'vue';
+import { sessionState } from '@/utils/session';
+import { logout as authLogout } from '@/services/authService';
 
-const isLogged = ref(!!cookies.get('evconnect_token'))
+// Estado reactivo basado en la sesión
+const isLogged = computed(() => sessionState.isAuthenticated);
 
-function login(){
-  isLogged.value = true
+/**
+ * Marca el usuario como autenticado
+ * (La sesión ya está gestionada por authService.login)
+ */
+function login() {
+  // No hace falta hacer nada, el authService ya gestiona la sesión
+  console.log('Usuario autenticado desde store');
 }
 
-function logout(){
-  isLogged.value = false
-  if (cookies && cookies.remove) cookies.remove('evconnect_token')
+/**
+ * Cierra la sesión del usuario
+ */
+function logout() {
+  authLogout();
 }
 
-function sync(){
-  isLogged.value = !!cookies.get('evconnect_token')
+/**
+ * Sincroniza el estado de autenticación
+ * (Ya no es necesario con la sesión reactiva)
+ */
+function sync() {
+  // La sesión se sincroniza automáticamente con sessionState
+  console.log('Estado de autenticación:', sessionState.isAuthenticated);
 }
 
-export { isLogged, login, logout, sync }
+export { isLogged, login, logout, sync };

@@ -2,20 +2,20 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
 import StationsView from '../views/StationsView.vue';
+import ChargersView from '../views/ChargersView.vue';
 import TariffsView from '../views/TariffsView.vue';
 import ReportsView from '../views/ReportsView.vue';
-import UsersView from '../views/UsersView.vue';
-import cookies from 'vue-cookies'
+import { sessionState } from '@/utils/session';
 
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', component: LoginView },
   { path: '/dashboard', component: DashboardView },
   { path: '/stations', component: StationsView },
+  { path: '/support', component: ChargersView }, // Renombrado de /chargers a /support
   { path: '/tariffs', component: TariffsView },
   { path: '/reports', component: ReportsView },
-  { path: '/users', component: UsersView },
-  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
+  { path: '/:pathMatch(.*)*', redirect: '/login' } // Cambiar a /login para evitar loops
 ];
 
 const router = createRouter({
@@ -23,18 +23,20 @@ const router = createRouter({
   routes,
 });
 
-// Global guard: require cookie 'evconnect_token' for protected routes
+// Guard global: requiere autenticación para rutas protegidas
 router.beforeEach((to, from, next) => {
   const publicPages = ['/login'];
   const authRequired = !publicPages.includes(to.path);
 
-  const token = cookies.get('evconnect_token');
+  // Verificar autenticación desde sessionState Y localStorage como fallback
+  const isAuthenticated = sessionState.isAuthenticated || 
+                          (localStorage.getItem('evconnect_token') && localStorage.getItem('evconnect_user'));
 
-  if (authRequired && !token) {
+  if (authRequired && !isAuthenticated) {
     return next('/login');
   }
 
-  if (to.path === '/login' && token) {
+  if (to.path === '/login' && isAuthenticated) {
     return next('/dashboard');
   }
 
