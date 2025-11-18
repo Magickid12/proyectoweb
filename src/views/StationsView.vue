@@ -9,10 +9,8 @@
       </button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
+    <!-- Loading State con Skeleton -->
+    <SkeletonLoader v-if="loading" type="stations" />
 
     <!-- Error State -->
     <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -228,12 +226,13 @@ import { ref, onMounted, getCurrentInstance } from 'vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import ChargerCard from '../components/ChargerCard.vue';
 import ToastNotification from '../components/ToastNotification.vue';
+import SkeletonLoader from '../components/SkeletonLoader.vue';
 import { getStationsByFranchise } from '@/services/stationsService';
 import { useChargerWebSocket, useWebSocketSupport } from '@/composables/useWebSocket';
 import { wsManager } from '@/services/websocketManager';
 
 export default {
-  components: { StatusBadge, ChargerCard, ToastNotification },
+  components: { StatusBadge, ChargerCard, ToastNotification, SkeletonLoader },
   setup() {
     const loading = ref(true);
     const error = ref(null);

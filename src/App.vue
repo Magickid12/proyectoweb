@@ -35,18 +35,22 @@
     <div v-else class="h-full overflow-y-auto">
       <router-view />
     </div>
+    
+    <!-- PWA Install Prompt -->
+    <PWAInstallPrompt />
   </div>
 </template>
 
 <script>
 import Sidebar from './components/Sidebar.vue';
+import PWAInstallPrompt from './components/PWAInstallPrompt.vue';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { isLogged } from '@/stores/auth';
 import { sidebarOpen, openSidebar, closeSidebar, toggleSidebar } from '@/stores/ui';
 
 export default {
-  components: { Sidebar },
+  components: { Sidebar, PWAInstallPrompt },
   setup(){
     const router = useRouter();
     const isLargeScreen = ref(window.innerWidth >= 1024);

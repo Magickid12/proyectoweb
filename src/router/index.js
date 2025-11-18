@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
 import StationsView from '../views/StationsView.vue';
-import ChargersView from '../views/ChargersView.vue';
+import SupportView from '../views/SupportView.vue';
 import TariffsView from '../views/TariffsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import { sessionState } from '@/utils/session';
@@ -12,7 +12,7 @@ const routes = [
   { path: '/login', component: LoginView },
   { path: '/dashboard', component: DashboardView },
   { path: '/stations', component: StationsView },
-  { path: '/support', component: ChargersView }, // Renombrado de /chargers a /support
+  { path: '/support', component: SupportView },
   { path: '/tariffs', component: TariffsView },
   { path: '/reports', component: ReportsView },
   { path: '/:pathMatch(.*)*', redirect: '/login' } // Cambiar a /login para evitar loops

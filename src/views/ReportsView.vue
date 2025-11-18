@@ -44,9 +44,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
+    <SkeletonLoader v-if="loading" type="reports" />
 
     <!-- Error State -->
     <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -139,9 +137,10 @@
 import { ref, onMounted } from 'vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import { getSessions } from '@/services/sessionsService';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 export default {
-  components: { StatusBadge },
+  components: { StatusBadge, SkeletonLoader },
   setup() {
     const loading = ref(true);
     const error = ref(null);

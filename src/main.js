@@ -59,13 +59,22 @@ app.use(VueCookies);
 app.use(sessionPlugin); // Registra el plugin de sesión global ($session)
 app.mount('#app');
 
-// Register service worker (only in production-like env or when available)
-// Only register the service worker in production to avoid interfering with dev server fetches
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Register service worker for PWA
+// Works in both dev and production
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('SW registration failed:', err);
-    });
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('✅ Service Worker registered:', registration.scope);
+        
+        // Check for updates periodically
+        setInterval(() => {
+          registration.update();
+        }, 60000); // Check every minute
+      })
+      .catch((err) => {
+        console.warn('⚠️ SW registration failed:', err);
+      });
   });
 }
 

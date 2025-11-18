@@ -10,9 +10,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
+    <SkeletonLoader v-if="loading" type="tariffs" />
 
     <!-- Error State -->
     <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -309,8 +307,10 @@
 import { ref, onMounted, reactive } from 'vue';
 import { getRates, createRate, updateRate } from '@/services/ratesService';
 import { getStationsByFranchise } from '@/services/stationsService';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 export default {
+  components: { SkeletonLoader },
   setup() {
     const loading = ref(true);
     const error = ref(null);

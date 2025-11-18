@@ -15,10 +15,8 @@
       </button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
+    <!-- Loading State con Skeleton -->
+    <SkeletonLoader v-if="loading" type="dashboard" />
 
     <!-- Error State -->
     <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -58,7 +56,7 @@
       <div class="grid grid-cols-1 gap-6">
         <!-- Resumen de Estados (Original) -->
         <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
-          <h3 class="text-xl font-semibold mb-3">Resumen General de Estados</h3>
+          <h3 class="text-xl font-semibold mb-3">Resumen General de Cargadores</h3>
           
           <div v-if="chargersByStatus.length === 0" class="text-center py-8 text-gray-500">
             📊 No hay datos de resumen disponibles
@@ -156,12 +154,13 @@ import { ref, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import StatCard from '../components/StatCard.vue';
 import ChargerCard from '../components/ChargerCard.vue';
 import ToastNotification from '../components/ToastNotification.vue';
+import SkeletonLoader from '../components/SkeletonLoader.vue';
 import { getStats } from '@/services/dashboardService';
 import { useWebSocketSupport } from '@/composables/useWebSocket';
 import { wsManager } from '@/services/websocketManager';
 
 export default { 
-  components: { StatCard, ChargerCard, ToastNotification },
+  components: { StatCard, ChargerCard, ToastNotification, SkeletonLoader },
   setup() {
     const loading = ref(true);
     const error = ref(null);
