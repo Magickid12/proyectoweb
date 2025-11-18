@@ -25,7 +25,7 @@ export default {
   setup(props) {
     const statusText = computed(() => {
       if (!props.showLabel) return '';
-      return props.connected ? 'IoT Online' : 'IoT Offline';
+      return props.connected ? 'Cargador Conectado' : 'Cargador Desconectado';
     });
 
     const statusClass = computed(() => {

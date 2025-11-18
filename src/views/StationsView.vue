@@ -194,14 +194,14 @@ export default {
             chargerIoTStates.value[chargerId] = data.conectado || false;
           }
 
-          // Notificación de conexión/desconexión del IoT (NUEVO)
+          // Notificación de conexión/desconexión del dispositivo (NUEVO)
           if (data.type === 'estado_cargador' && data.hasOwnProperty('conectado')) {
             chargerIoTStates.value[chargerId] = data.conectado;
             
             if (data.conectado === true) {
-              showNotification(`Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
+              showNotification(`Cargador #${chargerId} se ha conectado`, 'success');
             } else {
-              showNotification(`Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
+              showNotification(`Cargador #${chargerId} se ha desconectado`, 'error');
             }
           }
 

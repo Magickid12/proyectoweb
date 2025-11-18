@@ -159,6 +159,7 @@ import ChargerCard from '../components/ChargerCard.vue';
 import ToastNotification from '../components/ToastNotification.vue';
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 import { getStats } from '@/services/dashboardService';
+import { getStationsByFranchise } from '@/services/stationsService';
 import { useWebSocketSupport } from '@/composables/useWebSocket';
 import { wsManager } from '@/services/websocketManager';
 
@@ -225,14 +226,14 @@ export default {
             chargerIoTStates.value[chargerId] = data.conectado || false;
           }
 
-          // Notificación de conexión/desconexión del IoT (NUEVO)
+          // Notificación de conexión/desconexión del dispositivo (NUEVO)
           if (data.type === 'estado_cargador' && data.hasOwnProperty('conectado')) {
             chargerIoTStates.value[chargerId] = data.conectado;
             
             if (data.conectado === true) {
-              showNotification(`Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
+              showNotification(`Cargador #${chargerId} se ha conectado`, 'success');
             } else {
-              showNotification(`Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
+              showNotification(`Cargador #${chargerId} se ha desconectado`, 'error');
             }
           }
 
@@ -320,11 +321,25 @@ export default {
         loading.value = true;
         error.value = null;
         
-        // Cargar stats desde /api/franquicia/dashboard
+        // Cargar stats desde /api/franquicia/dashboard para métricas
         const data = await getStats();
         stats.value = data;
         
-        // Procesar cargadores por estado - Agrupar por estado
+        // Cargar estaciones con información completa de cargadores
+        const stations = await getStationsByFranchise();
+        
+        // Crear un mapa de cargadores completos por ID para enriquecer los datos
+        const chargersMap = {};
+        stations.forEach(station => {
+          station.cargadores.forEach(charger => {
+            chargersMap[charger.id_cargador] = {
+              ...charger,
+              nombre_estacion: station.nombre_estacion
+            };
+          });
+        });
+        
+        // Procesar cargadores por estado usando estadoCargadores del dashboard
         if (data.estadoCargadores && Array.isArray(data.estadoCargadores)) {
           // Agrupar cargadores por estado
           const grouped = data.estadoCargadores.reduce((acc, cargador) => {
@@ -345,10 +360,13 @@ export default {
           
           chargersByStatus.value = grouped;
 
-          // Agrupar cargadores por estación y ORDENAR de menor a mayor
+          // Agrupar cargadores por estación con información completa
           const stationGroups = data.estadoCargadores.reduce((acc, cargador) => {
             const estacionId = cargador.id_estacion;
-            const estacionNombre = cargador.nombre_estacion || `Estación ${estacionId}`;
+            
+            // Buscar información completa del cargador
+            const fullChargerInfo = chargersMap[cargador.id_cargador];
+            const estacionNombre = fullChargerInfo?.nombre_estacion || `Estación ${estacionId}`;
             
             let group = acc.find(g => g.estacionId === estacionId);
             if (!group) {
@@ -360,7 +378,12 @@ export default {
               acc.push(group);
             }
             
-            group.chargers.push(cargador);
+            // Mezclar datos: estado actualizado del dashboard + info completa de stations
+            group.chargers.push({
+              ...fullChargerInfo,
+              estado: cargador.estado // Usar estado actualizado del dashboard
+            });
+            
             return acc;
           }, []);
 
