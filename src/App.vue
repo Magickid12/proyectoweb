@@ -1,21 +1,39 @@
 
 <template>
-  <div class="font-inter min-h-screen bg-gray-50">
-    <div class="flex">
-  <Sidebar v-if="isLogged" />
-      <div class="flex-1">
-        <!-- Header móvil -->
-        <header class="bg-white p-4 sticky top-0 z-10 lg:hidden flex justify-between items-center">
+  <div class="font-inter h-screen bg-gray-50 overflow-hidden">
+    <!-- Solo mostrar el layout con sidebar si el usuario está logueado -->
+    <div v-if="isLogged" class="flex h-full">
+      <!-- Sidebar -->
+      <Sidebar />
+      
+      <!-- Contenedor principal -->
+      <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Header móvil (SOLO en pantallas pequeñas) -->
+        <header v-if="!isLargeScreen" class="bg-white p-4 flex justify-between items-center shadow-sm z-20 flex-shrink-0">
           <button @click="toggleSidebar" class="p-2 rounded-lg mobile-menu-btn">
-            <font-awesome-icon :icon="['fas', 'bars']" />
+            <font-awesome-icon :icon="['fas', 'bars']" class="text-xl" />
           </button>
           <h1 class="text-lg font-semibold">EVCONNECT</h1>
-          <div></div>
+          <div class="w-10"></div>
         </header>
+        
         <!-- Overlay móvil cuando sidebar abierto -->
-        <div v-if="sidebarOpen && !isLargeScreen" class="fixed inset-0 bg-black bg-opacity-40 z-30 lg:hidden" @click="closeSidebar()"></div>
-        <router-view />
+        <div 
+          v-if="sidebarOpen && !isLargeScreen" 
+          class="fixed inset-0 bg-black bg-opacity-50 z-30" 
+          @click="closeSidebar"
+        ></div>
+        
+        <!-- Contenido con scroll -->
+        <main class="flex-1 overflow-y-auto">
+          <router-view />
+        </main>
       </div>
+    </div>
+    
+    <!-- Vista de login sin sidebar -->
+    <div v-else class="h-full overflow-y-auto">
+      <router-view />
     </div>
   </div>
 </template>

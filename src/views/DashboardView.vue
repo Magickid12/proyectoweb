@@ -56,43 +56,6 @@
       </div>
 
       <div class="grid grid-cols-1 gap-6">
-        <!-- Estado de Cargadores Agrupados por Estación -->
-        <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
-          <h3 class="text-xl font-semibold mb-4">Estado de Cargadores en Tiempo Real</h3>
-          
-          <div v-if="!chargersByStation || chargersByStation.length === 0" class="text-center py-8 text-gray-500">
-            📊 No hay datos de cargadores disponibles
-          </div>
-          
-          <!-- Cargadores agrupados por estación -->
-          <div v-else class="space-y-6">
-            <div v-for="stationGroup in chargersByStation" :key="stationGroup.estacionId" class="border border-gray-200 rounded-lg p-4">
-              <div class="flex items-center justify-between mb-4">
-                <h4 class="font-semibold text-lg text-gray-900">
-                  📍 {{ stationGroup.estacionNombre }}
-                </h4>
-                <span class="text-sm text-gray-500">{{ stationGroup.chargers.length }} cargadores</span>
-              </div>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <ChargerCard 
-                  v-for="charger in stationGroup.chargers" 
-                  :key="charger.id_cargador"
-                  :charger="charger"
-                  :ws-status="chargerWSStates[charger.id_cargador] || 'desconectado'"
-                  :current-state="chargerCurrentStates[charger.id_cargador]"
-                  :telemetry="chargerTelemetry[charger.id_cargador]"
-                  :iot-connected="chargerIoTStates[charger.id_cargador] || false"
-                  :has-web-socket-support="hasSupport(charger.id_cargador)"
-                  :show-actions="true"
-                  :show-emergency-button="true"
-                  @emergency="handleEmergencyStop(charger.id_cargador)"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Resumen de Estados (Original) -->
         <div class="bg-white p-4 rounded-xl shadow border border-gray-100">
           <h3 class="text-xl font-semibold mb-3">Resumen General de Estados</h3>
@@ -115,6 +78,63 @@
                 {{ statusGroup.cantidad }}
               </div>
               <div class="text-sm text-gray-500">cargadores</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado de Cargadores Agrupados por Estación (DESPLEGABLE) -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
+          <h3 class="text-xl font-semibold mb-4">Estado de Cargadores en Tiempo Real</h3>
+          
+          <div v-if="!chargersByStation || chargersByStation.length === 0" class="text-center py-8 text-gray-500">
+            📊 No hay datos de cargadores disponibles
+          </div>
+          
+          <!-- Cargadores agrupados por estación (DESPLEGABLES) -->
+          <div v-else class="space-y-4">
+            <div v-for="stationGroup in chargersByStation" :key="stationGroup.estacionId" class="border border-gray-200 rounded-lg overflow-hidden">
+              
+              <!-- Encabezado de estación (clickeable) -->
+              <div 
+                @click="toggleStation(stationGroup.estacionId)"
+                class="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+              >
+                <div class="flex items-center gap-3">
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    class="h-5 w-5 transition-transform duration-200"
+                    :class="expandedStations[stationGroup.estacionId] ? 'rotate-90' : ''"
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  <h4 class="font-semibold text-lg text-gray-900">
+                    📍 {{ stationGroup.estacionNombre }}
+                  </h4>
+                </div>
+                <span class="text-sm text-gray-500 font-medium">{{ stationGroup.chargers.length }} cargadores</span>
+              </div>
+              
+              <!-- Contenido desplegable de cargadores -->
+              <div v-show="expandedStations[stationGroup.estacionId]" class="p-4 bg-white">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <ChargerCard 
+                    v-for="charger in stationGroup.chargers" 
+                    :key="charger.id_cargador"
+                    :charger="charger"
+                    :ws-status="chargerWSStates[charger.id_cargador] || 'desconectado'"
+                    :current-state="chargerCurrentStates[charger.id_cargador]"
+                    :telemetry="chargerTelemetry[charger.id_cargador]"
+                    :iot-connected="chargerIoTStates[charger.id_cargador] || false"
+                    :has-web-socket-support="hasSupport(charger.id_cargador)"
+                    :show-actions="true"
+                    :show-emergency-button="true"
+                    @emergency="handleEmergencyStop(charger.id_cargador)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -149,6 +169,7 @@ export default {
     const stats = ref(null);
     const chargersByStatus = ref([]);
     const chargersByStation = ref([]);
+    const expandedStations = ref({}); // NUEVO: Estado de expansión
     
     // WebSocket states
     const chargerWSStates = ref({});
@@ -275,6 +296,11 @@ export default {
         showNotification(`❌ No se pudo enviar el comando al Cargador #${chargerId}`, 'error');
       }
     };
+
+    // Toggle expansión de estación (NUEVO)
+    const toggleStation = (stationId) => {
+      expandedStations.value[stationId] = !expandedStations.value[stationId];
+    };
     
     const loadDashboardData = async () => {
       try {
@@ -306,7 +332,7 @@ export default {
           
           chargersByStatus.value = grouped;
 
-          // Agrupar cargadores por estación
+          // Agrupar cargadores por estación y ORDENAR de menor a mayor
           const stationGroups = data.estadoCargadores.reduce((acc, cargador) => {
             const estacionId = cargador.id_estacion;
             const estacionNombre = cargador.nombre_estacion || `Estación ${estacionId}`;
@@ -325,7 +351,15 @@ export default {
             return acc;
           }, []);
 
+          // ORDENAR estaciones de menor a mayor por ID (Estación 1, luego 2)
+          stationGroups.sort((a, b) => a.estacionId - b.estacionId);
+
           chargersByStation.value = stationGroups;
+
+          // Expandir todas las estaciones por defecto
+          stationGroups.forEach(group => {
+            expandedStations.value[group.estacionId] = true;
+          });
           
           // Conectar WebSocket a cargadores soportados
           connectSupportedChargers();
@@ -385,6 +419,7 @@ export default {
       stats,
       chargersByStatus,
       chargersByStation,
+      expandedStations,
       chargerWSStates,
       chargerCurrentStates,
       chargerTelemetry,
@@ -393,6 +428,7 @@ export default {
       toastType,
       showToast,
       hasSupport,
+      toggleStation,
       loadDashboardData: refreshDashboard, // Usar función mejorada
       formatDate,
       getStatusColor,
