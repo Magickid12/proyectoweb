@@ -10,14 +10,9 @@
     </div>
 
     <!-- WebSocket Status -->
-    <div v-if="hasWebSocketSupport" class="mb-3 space-y-2">
-      <WebSocketStatus :status="wsStatus" />
-      <IoTStatus :connected="iotConnected" />
-    </div>
-    <div v-else class="mb-3">
-      <div class="text-xs text-gray-500 italic">
-        ⚠️ WebSocket no disponible
-      </div>
+    <div class="mb-3 space-y-2">
+      <WebSocketStatus :status="hasWebSocketSupport ? wsStatus : 'desconectado'" />
+      <IoTStatus :connected="hasWebSocketSupport ? iotConnected : false" />
     </div>
 
     <!-- Charger Info -->
@@ -49,7 +44,10 @@
 
     <!-- Telemetry (solo si está conectado Y el IoT está online) -->
     <div v-if="hasWebSocketSupport && wsStatus === 'conectado' && iotConnected && telemetry" class="mb-4 p-3 bg-gray-50 rounded-lg">
-      <div class="text-xs font-semibold text-gray-700 mb-2">📊 Telemetría en Tiempo Real</div>
+      <div class="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+        <i class="fas fa-chart-line"></i>
+        <span>Telemetría en Tiempo Real</span>
+      </div>
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div>
           <span class="text-gray-600">Voltaje:</span>
@@ -70,26 +68,20 @@
       </div>
     </div>
 
-    <!-- Warning cuando IoT está offline -->
-    <div v-if="hasWebSocketSupport && wsStatus === 'conectado' && !iotConnected" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-      <div class="flex items-center gap-2 text-xs text-yellow-800">
-        <span>⚠️</span>
-        <span>El cargador IoT no está conectado. Los controles están deshabilitados.</span>
-      </div>
-    </div>
-
     <!-- Action Buttons -->
-    <div v-if="showActions && hasWebSocketSupport" class="space-y-2">
+    <div v-if="showActions" class="space-y-2">
       <!-- Maintenance Button (StationsView) -->
       <button 
         v-if="showMaintenanceButton"
         @click="handleMaintenanceClick"
         :disabled="!canSendCommands || changingState"
         class="w-full px-3 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center justify-center gap-2"
-        :title="!canSendCommands ? 'IoT no disponible' : ''"
+        :title="!canSendCommands ? 'Cargador no disponible' : ''"
       >
-        <span v-if="!changingState">🔧 Cambiar a Mantenimiento</span>
-        <span v-else>⏳ Cambiando estado...</span>
+        <i class="fas fa-tools" v-if="!changingState"></i>
+        <i class="fas fa-spinner fa-spin" v-else></i>
+        <span v-if="!changingState">Cambiar a Mantenimiento</span>
+        <span v-else>Cambiando estado...</span>
       </button>
 
       <!-- Emergency Stop Button (DashboardView) -->
@@ -98,16 +90,13 @@
         @click="handleEmergencyClick"
         :disabled="!canSendCommands || changingState"
         class="w-full px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center justify-center gap-2"
-        :title="!canSendCommands ? 'IoT no disponible' : ''"
+        :title="!canSendCommands ? 'Cargador no disponible' : ''"
       >
-        <span v-if="!changingState">🚨 PARO DE EMERGENCIA</span>
-        <span v-else>⏳ Ejecutando...</span>
+        <i class="fas fa-hand-paper" v-if="!changingState"></i>
+        <i class="fas fa-spinner fa-spin" v-else></i>
+        <span v-if="!changingState">PARO DE EMERGENCIA</span>
+        <span v-else>Ejecutando...</span>
       </button>
-    </div>
-
-    <!-- Placeholder for non-WebSocket chargers -->
-    <div v-if="!hasWebSocketSupport" class="p-3 bg-gray-100 rounded-lg text-center text-xs text-gray-600">
-      Este cargador no tiene monitoreo en tiempo real disponible
     </div>
   </div>
 </template>
@@ -176,7 +165,7 @@ export default {
 
     // Los comandos solo se pueden enviar si WebSocket está conectado Y el IoT está conectado
     const canSendCommands = computed(() => {
-      return props.wsStatus === 'conectado' && props.iotConnected;
+      return props.hasWebSocketSupport && props.wsStatus === 'conectado' && props.iotConnected;
     });
 
     const formatDate = (dateString) => {
@@ -187,7 +176,7 @@ export default {
 
     const handleMaintenanceClick = () => {
       if (!canSendCommands.value) {
-        alert('⚠️ No se puede cambiar el estado: El cargador IoT no está conectado.');
+        alert('⚠️ No se puede cambiar el estado: El cargador no está disponible.');
         return;
       }
 
@@ -203,11 +192,11 @@ export default {
 
     const handleEmergencyClick = () => {
       if (!canSendCommands.value) {
-        alert('⚠️ No se puede ejecutar el paro de emergencia: El cargador IoT no está conectado.');
+        alert(' No se puede ejecutar el paro de emergencia: El cargador no está disponible.');
         return;
       }
 
-      if (confirm(`⚠️ ¿SEGURO que deseas activar el PARO DE EMERGENCIA en el Cargador #${props.charger.id_cargador}?\n\nEsta acción detendrá inmediatamente el suministro de energía y pondrá el cargador FUERA DE SERVICIO.`)) {
+      if (confirm(` ¿SEGURO que deseas activar el PARO DE EMERGENCIA en el Cargador #${props.charger.id_cargador}?\n\nEsta acción detendrá inmediatamente el suministro de energía y pondrá el cargador FUERA DE SERVICIO.`)) {
         changingState.value = true;
         emit('emergency');
         // Reset después de 2 segundos

@@ -72,12 +72,14 @@
               ></textarea>
             </div>
 
-            <div v-if="submitSuccess" class="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-              ✅ Mensaje enviado exitosamente. Te responderemos pronto.
+            <div v-if="submitSuccess" class="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center gap-2">
+              <i class="fas fa-check-circle"></i>
+              <span>Mensaje enviado exitosamente. Te responderemos pronto.</span>
             </div>
 
-            <div v-if="submitError" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              ⚠️ {{ submitError }}
+            <div v-if="submitError" class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>{{ submitError }}</span>
             </div>
 
             <button 

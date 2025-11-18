@@ -20,7 +20,8 @@
     <!-- Stations List with Expandable Chargers -->
     <div v-else class="space-y-4">
       <div v-if="stationsData.length === 0" class="text-center py-12 text-gray-500 bg-white rounded-xl shadow border border-gray-100">
-        📍 No hay estaciones registradas
+        <i class="fas fa-building text-4xl mb-3"></i>
+        <div>No hay estaciones registradas</div>
       </div>
       
       <!-- Station Card -->
@@ -56,7 +57,10 @@
                   <h3 class="text-lg font-bold text-gray-900">#{{ station.id_estacion }} - {{ station.nombre_estacion }}</h3>
                   <StatusBadge :status="station.estado_operacion" />
                 </div>
-                <p class="text-sm text-gray-600">📍 {{ station.direccion }}</p>
+                <p class="text-sm text-gray-600 flex items-center gap-1">
+                  <i class="fas fa-map-marker-alt text-primary"></i>
+                  {{ station.direccion }}
+                </p>
               </div>
             </div>
             
@@ -67,23 +71,10 @@
                 <div class="text-xs text-gray-500">Cargadores</div>
               </div>
               
-              <div class="flex flex-col gap-2">
-                <a 
-                  v-if="station.ubicacion_lat && station.ubicacion_lon"
-                  :href="`https://www.google.com/maps?q=${station.ubicacion_lat},${station.ubicacion_lon}`"
-                  target="_blank"
-                  @click.stop
-                  class="text-primary hover:text-primary-dark text-sm font-medium"
-                >
-                  📍 Ver en mapa
-                </a>
-                <button 
-                  @click.stop="openAssignRateModal(station)"
-                  class="text-primary hover:text-primary-dark text-sm font-medium"
-                >
-                  💰 Asignar Tarifa
-                </button>
-              </div>
+              <!-- <div class="flex items-center gap-2 text-sm text-gray-600">
+                <i class="fas fa-calendar-alt"></i>
+                <span>{{ formatDate(station.fecha_registro) }}</span>
+              </div> -->
             </div>
           </div>
         </div>
@@ -99,7 +90,8 @@
           </div>
           
           <div v-else-if="!stationChargers[station.id_estacion] || stationChargers[station.id_estacion].length === 0" class="p-8 text-center text-gray-500">
-            🔌 No hay cargadores en esta estación
+            <i class="fas fa-plug text-3xl mb-2"></i>
+            <div>No hay cargadores en esta estación</div>
           </div>
           
           <div v-else class="p-6">
@@ -121,93 +113,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Modal Asignar Tarifa -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <h3 class="text-xl font-bold mb-4">Asignar Tarifa a {{ selectedStation?.nombre_estacion }}</h3>
-        
-        <form @submit.prevent="assignRate" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Carga</label>
-            <select v-model="rateForm.tipo_carga" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-              <option value="">Seleccionar...</option>
-              <option value="lenta">Lenta (7-22 kW)</option>
-              <option value="normal">Normal</option>
-              <option value="rapida">Rápida (50-75 kW)</option>
-              <option value="ultrarapida">Ultra Rápida (>150 kW)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Costo por kWh (MXN)</label>
-            <input 
-              v-model.number="rateForm.costo_kw_h" 
-              type="number" 
-              step="0.01" 
-              min="0"
-              required 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="0.45"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Costo por Minuto (MXN)</label>
-            <input 
-              v-model.number="rateForm.costo_tiempo_min" 
-              type="number" 
-              step="0.01" 
-              min="0"
-              required 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="0.10"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio Vigencia</label>
-            <input 
-              v-model="rateForm.fecha_inicio_vigencia" 
-              type="date" 
-              required 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin Vigencia (Opcional)</label>
-            <input 
-              v-model="rateForm.fecha_fin_vigencia" 
-              type="date" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-
-          <div v-if="modalError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-            {{ modalError }}
-          </div>
-
-          <div class="flex gap-3 pt-2">
-            <button 
-              type="button" 
-              @click="closeModal"
-              :disabled="savingRate"
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit" 
-              :disabled="savingRate"
-              class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {{ savingRate ? 'Guardando...' : 'Asignar Tarifa' }}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
 
@@ -254,19 +159,6 @@ export default {
     
     // WebSocket Support
     const { hasSupport } = useWebSocketSupport();
-    
-    const showModal = ref(false);
-    const selectedStation = ref(null);
-    const savingRate = ref(false);
-    const modalError = ref(null);
-    
-    const rateForm = ref({
-      tipo_carga: '',
-      costo_kw_h: null,
-      costo_tiempo_min: null,
-      fecha_inicio_vigencia: new Date().toISOString().split('T')[0],
-      fecha_fin_vigencia: ''
-    });
 
     // Función para mostrar notificaciones
     const showNotification = (message, type = 'info') => {
@@ -288,11 +180,11 @@ export default {
           chargerWSStates.value[chargerId] = status;
           
           if (status === 'conectado') {
-            showNotification(`✅ Conectado al Cargador #${chargerId}`, 'success');
+            showNotification(`Conectado al Cargador #${chargerId}`, 'success');
           } else if (status === 'reconectando') {
-            showNotification(`🔄 Reconectando al Cargador #${chargerId}...`, 'connecting');
+            showNotification(`Reconectando al Cargador #${chargerId}...`, 'connecting');
           } else if (status === 'error') {
-            showNotification(`❌ Error de conexión con Cargador #${chargerId}`, 'error');
+            showNotification(`Error de conexión con Cargador #${chargerId}`, 'error');
           }
         },
         onMessage: (data) => {
@@ -300,10 +192,6 @@ export default {
           if (data.type === 'subscribed') {
             chargerCurrentStates.value[chargerId] = data.estado_cargador;
             chargerIoTStates.value[chargerId] = data.conectado || false;
-            
-            if (data.conectado === false) {
-              showNotification(`⚠️ Cargador #${chargerId}: IoT no está conectado`, 'warning');
-            }
           }
 
           // Notificación de conexión/desconexión del IoT (NUEVO)
@@ -311,9 +199,9 @@ export default {
             chargerIoTStates.value[chargerId] = data.conectado;
             
             if (data.conectado === true) {
-              showNotification(`✅ Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
+              showNotification(`Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
             } else {
-              showNotification(`❌ Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
+              showNotification(`Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
             }
           }
 
@@ -324,21 +212,21 @@ export default {
             }
             if (data.payload.type === 'estado_cargador') {
               chargerCurrentStates.value[chargerId] = data.payload.estado;
-              showNotification(`🔄 Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
+              showNotification(`Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
             }
             if (data.payload.type === 'alerta') {
-              showNotification(`🚨 Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
+              showNotification(`Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
             }
           }
 
           // Confirmación de comando
           if (data.type === 'comando_enviado') {
-            showNotification(`✅ Comando enviado al Cargador #${chargerId}`, 'success');
+            showNotification(`Comando enviado al Cargador #${chargerId}`, 'success');
           }
 
           // Error
           if (data.type === 'error') {
-            showNotification(`❌ ${data.message}`, 'error');
+            showNotification(`Error: ${data.message}`, 'error');
           }
         }
       });
@@ -355,7 +243,7 @@ export default {
 
     // Reconectar todos los WebSocket manualmente (para botón refresh)
     const reconnectAllChargers = () => {
-      showNotification('🔄 Reiniciando conexiones WebSocket...', 'connecting');
+      showNotification('Reiniciando conexiones WebSocket...', 'connecting');
       
       // Obtener todos los cargadores actualmente conectados
       const connectedChargers = Object.keys(chargerWSStates.value).map(id => parseInt(id));
@@ -430,75 +318,14 @@ export default {
 
     // Manejar cambio a mantenimiento
     const handleMaintenanceChange = (chargerId) => {
-      showNotification(`🔧 Cambiando Cargador #${chargerId} a mantenimiento...`, 'info');
+      showNotification(`Cambiando Cargador #${chargerId} a mantenimiento...`, 'info');
       wsManager.cambiarEstado(chargerId, 'mantenimiento');
-    };
-    
-    const getChargerRate = (charger) => {
-      // Aquí podrías obtener la tarifa real del cargador si está disponible
-      // Por ahora mostramos un valor simulado basado en el tipo
-      const rates = {
-        'lenta': '$3.50/kWh',
-        'rapida': '$5.00/kWh',
-        'ultra_rapida': '$7.50/kWh'
-      };
-      return rates[charger.tipo_carga] || 'N/A';
     };
     
     const formatDate = (dateString) => {
       if (!dateString) return 'N/A';
       const date = new Date(dateString);
       return date.toLocaleDateString('es-MX');
-    };
-    
-    const openAssignRateModal = (station) => {
-      selectedStation.value = station;
-      showModal.value = true;
-      modalError.value = null;
-      
-      // Reset form
-      rateForm.value = {
-        tipo_carga: '',
-        costo_kw_h: null,
-        costo_tiempo_min: null,
-        fecha_inicio_vigencia: new Date().toISOString().split('T')[0],
-        fecha_fin_vigencia: ''
-      };
-    };
-    
-    const closeModal = () => {
-      showModal.value = false;
-      selectedStation.value = null;
-      modalError.value = null;
-    };
-    
-    const assignRate = async () => {
-      try {
-        savingRate.value = true;
-        modalError.value = null;
-        
-        const payload = {
-          tipo_carga: rateForm.value.tipo_carga,
-          costo_kw_h: parseFloat(rateForm.value.costo_kw_h),
-          costo_tiempo_min: parseFloat(rateForm.value.costo_tiempo_min),
-          fecha_inicio_vigencia: rateForm.value.fecha_inicio_vigencia
-        };
-        
-        if (rateForm.value.fecha_fin_vigencia) {
-          payload.fecha_fin_vigencia = rateForm.value.fecha_fin_vigencia;
-        }
-        
-        // await assignRateToStation(selectedStation.value.id_estacion, payload);
-        
-        alert(`✅ Tarifa asignada exitosamente a ${selectedStation.value.nombre_estacion}`);
-        closeModal();
-        
-      } catch (err) {
-        modalError.value = err.message || 'Error al asignar tarifa';
-        console.error('Error asignando tarifa:', err);
-      } finally {
-        savingRate.value = false;
-      }
     };
     
     onMounted(() => {
@@ -512,11 +339,6 @@ export default {
       expandedStations,
       stationChargers,
       loadingChargers,
-      showModal,
-      selectedStation,
-      savingRate,
-      modalError,
-      rateForm,
       chargerWSStates,
       chargerCurrentStates,
       chargerTelemetry,
@@ -528,11 +350,7 @@ export default {
       loadData,
       refreshStations,
       toggleStation,
-      getChargerRate,
       formatDate,
-      openAssignRateModal,
-      closeModal,
-      assignRate,
       handleMaintenanceChange
     };
   }

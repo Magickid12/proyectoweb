@@ -117,12 +117,13 @@
                     </span>
                     <span v-else class="text-green-600 font-medium">- Sin límite</span>
                   </div>
-                  <button 
+                    <button 
                     @click="openEditModal(station.id_estacion, 'lenta')"
-                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"
-                  >
-                    ✏️ Editar Precios
-                  </button>
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium flex items-center"
+                    >
+                    <i class="fas fa-edit mr-2" aria-hidden="true"></i>
+                    Editar Precios
+                    </button>
                 </div>
               </div>
               
@@ -185,9 +186,10 @@
                   </div>
                   <button 
                     @click="openEditModal(station.id_estacion, 'rapida')"
-                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium flex items-center"
                   >
-                    ✏️ Editar Precios
+                    <i class="fas fa-edit mr-2" aria-hidden="true"></i>
+                    Editar Precios
                   </button>
                 </div>
               </div>

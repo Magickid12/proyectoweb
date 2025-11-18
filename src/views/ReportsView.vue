@@ -54,7 +54,7 @@
     <!-- Sessions Table -->
     <div v-else class="bg-white rounded-xl shadow border border-gray-100">
       <div v-if="sessions.length === 0" class="text-center py-12 text-gray-500">
-        📊 No hay sesiones registradas
+         No hay sesiones registradas
       </div>
       
       <div v-else>

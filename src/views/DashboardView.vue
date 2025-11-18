@@ -59,7 +59,8 @@
           <h3 class="text-xl font-semibold mb-3">Resumen General de Cargadores</h3>
           
           <div v-if="chargersByStatus.length === 0" class="text-center py-8 text-gray-500">
-            📊 No hay datos de resumen disponibles
+            <i class="fas fa-chart-bar text-3xl mb-2"></i>
+            <div>No hay datos de resumen disponibles</div>
           </div>
           
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -85,7 +86,8 @@
           <h3 class="text-xl font-semibold mb-4">Estado de Cargadores en Tiempo Real</h3>
           
           <div v-if="!chargersByStation || chargersByStation.length === 0" class="text-center py-8 text-gray-500">
-            📊 No hay datos de cargadores disponibles
+            <i class="fas fa-charging-station text-3xl mb-2"></i>
+            <div>No hay datos de cargadores disponibles</div>
           </div>
           
           <!-- Cargadores agrupados por estación (DESPLEGABLES) -->
@@ -108,8 +110,9 @@
                   >
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
+                  <i class="fas fa-map-marker-alt text-primary"></i>
                   <h4 class="font-semibold text-lg text-gray-900">
-                    📍 {{ stationGroup.estacionNombre }}
+                    {{ stationGroup.estacionNombre }}
                   </h4>
                 </div>
                 <span class="text-sm text-gray-500 font-medium">{{ stationGroup.chargers.length }} cargadores</span>
@@ -208,11 +211,11 @@ export default {
           chargerWSStates.value[chargerId] = status;
           
           if (status === 'conectado') {
-            showNotification(`✅ Conectado al Cargador #${chargerId}`, 'success');
+            showNotification(`Conectado al Cargador #${chargerId}`, 'success');
           } else if (status === 'reconectando') {
-            showNotification(`🔄 Reconectando al Cargador #${chargerId}...`, 'connecting');
+            showNotification(`Reconectando al Cargador #${chargerId}...`, 'connecting');
           } else if (status === 'error') {
-            showNotification(`❌ Error de conexión con Cargador #${chargerId}`, 'error');
+            showNotification(`Error de conexión con Cargador #${chargerId}`, 'error');
           }
         },
         onMessage: (data) => {
@@ -220,10 +223,6 @@ export default {
           if (data.type === 'subscribed') {
             chargerCurrentStates.value[chargerId] = data.estado_cargador;
             chargerIoTStates.value[chargerId] = data.conectado || false;
-            
-            if (data.conectado === false) {
-              showNotification(`⚠️ Cargador #${chargerId}: IoT no está conectado`, 'warning');
-            }
           }
 
           // Notificación de conexión/desconexión del IoT (NUEVO)
@@ -231,9 +230,9 @@ export default {
             chargerIoTStates.value[chargerId] = data.conectado;
             
             if (data.conectado === true) {
-              showNotification(`✅ Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
+              showNotification(`Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
             } else {
-              showNotification(`❌ Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
+              showNotification(`Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
             }
           }
 
@@ -244,21 +243,21 @@ export default {
             }
             if (data.payload.type === 'estado_cargador') {
               chargerCurrentStates.value[chargerId] = data.payload.estado;
-              showNotification(`🔄 Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
+              showNotification(`Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
             }
             if (data.payload.type === 'alerta') {
-              showNotification(`🚨 Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
+              showNotification(`Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
             }
           }
 
           // Confirmación de comando
           if (data.type === 'comando_enviado') {
-            showNotification(`✅ Comando enviado al Cargador #${chargerId}`, 'success');
+            showNotification(`Comando enviado al Cargador #${chargerId}`, 'success');
           }
 
           // Error
           if (data.type === 'error') {
-            showNotification(`❌ ${data.message}`, 'error');
+            showNotification(`Error: ${data.message}`, 'error');
           }
         }
       });
@@ -282,17 +281,17 @@ export default {
 
     // Reconectar todos los WebSocket manualmente (para botón refresh)
     const reconnectAllChargers = () => {
-      showNotification('🔄 Reiniciando conexiones WebSocket...', 'connecting');
+      showNotification('Reiniciando conexiones WebSocket...', 'connecting');
       wsManager.reconnectAll();
     };
 
     // Manejar paro de emergencia (AHORA cambia a fuera_servicio)
     const handleEmergencyStop = (chargerId) => {
-      showNotification(`🚨 Ejecutando paro de emergencia en Cargador #${chargerId}...`, 'warning');
+      showNotification(`Ejecutando paro de emergencia en Cargador #${chargerId}...`, 'warning');
       const result = wsManager.detenerEnergia(chargerId);
       
       if (!result) {
-        showNotification(`❌ No se pudo enviar el comando al Cargador #${chargerId}`, 'error');
+        showNotification(`No se pudo enviar el comando al Cargador #${chargerId}`, 'error');
       }
     };
 
