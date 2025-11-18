@@ -219,6 +219,20 @@ export default {
             }
           }
 
+          // NUEVO: Manejar mensaje directo de estado_cargador (cambiar_estado, detener_energia)
+          if (data.type === 'estado_cargador' && data.command && data.estado) {
+            chargerCurrentStates.value[chargerId] = data.estado;
+            console.log(`[Stations] Estado actualizado a ${data.estado} por comando ${data.command}`);
+            
+            if (data.command === 'detener_energia') {
+              showNotification(`Paro de emergencia ejecutado. Cargador #${chargerId} está fuera de servicio`, 'warning');
+            } else if (data.command === 'cambiar_estado') {
+              showNotification(`Cargador #${chargerId} cambió a: ${data.estado}`, 'success');
+            } else {
+              showNotification(`Cargador #${chargerId} cambió a: ${data.estado}`, 'info');
+            }
+          }
+
           // Confirmación de comando
           if (data.type === 'comando_enviado') {
             showNotification(`Comando enviado al Cargador #${chargerId}`, 'success');

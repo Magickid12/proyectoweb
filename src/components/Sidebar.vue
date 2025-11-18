@@ -20,30 +20,42 @@
             </button>
 
             <!-- Header con logo y título -->
-            <div :class="[
-                'flex items-center mb-8 flex-shrink-0',
-                sidebarCollapsed ? 'flex-col gap-2 justify-center' : 'gap-3'
-            ]">
-                <!-- Logo de EVCONNECT -->
-                <img 
-                    src="/icons/logo.png" 
-                    alt="EVCONNECT" 
-                    :class="[
-                        'object-contain transition-all duration-300',
-                        sidebarCollapsed ? 'w-10 h-10' : 'w-12 h-12'
-                    ]"
-                />
-                <div v-if="!sidebarCollapsed" class="text-2xl font-extrabold">EVCONNECT</div>
+            <div class="mb-8 flex-shrink-0">
+                <!-- Logo y título -->
+                <div :class="[
+                    'flex items-center',
+                    sidebarCollapsed ? 'flex-col gap-2 justify-center' : 'gap-3 mb-3'
+                ]">
+                    <img 
+                        src="/icons/logo.png" 
+                        alt="EVCONNECT" 
+                        :class="[
+                            'object-contain transition-all duration-300',
+                            sidebarCollapsed ? 'w-10 h-10' : 'w-12 h-12'
+                        ]"
+                    />
+                    <div v-if="!sidebarCollapsed" class="text-2xl font-extrabold">EVCONNECT</div>
+                </div>
                 
-                <!-- Botón colapsar (solo desktop) - SIEMPRE icono de 3 líneas -->
+                <!-- Botón colapsar (solo desktop) - En fila separada cuando expandido -->
+                <div v-if="!sidebarCollapsed" class="hidden lg:flex w-full mt-2 justify-end">
+                    <button 
+                        @click="toggleCollapse" 
+                        class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-sm" 
+                        style="color: #52F2B8;"
+                        title="Colapsar menú"
+                    >
+                        <font-awesome-icon :icon="['fas', 'bars']" />
+                    </button>
+                </div>
+                
+                <!-- Botón colapsar cuando está colapsado - Centrado -->
                 <button 
+                    v-if="sidebarCollapsed"
                     @click="toggleCollapse" 
-                    :class="[
-                        'hidden lg:block text-sm hover:text-white p-1 transition-colors',
-                        sidebarCollapsed ? 'mt-2' : 'ml-auto'
-                    ]" 
+                    class="hidden lg:block w-full p-2 rounded-lg hover:bg-white/10 transition-all duration-200" 
                     style="color: #52F2B8;"
-                    :title="sidebarCollapsed ? 'Expandir' : 'Colapsar'"
+                    title="Expandir menú"
                 >
                     <font-awesome-icon :icon="['fas', 'bars']" />
                 </button>
@@ -78,19 +90,6 @@
                     <span v-if="!sidebarCollapsed" class="ml-4 whitespace-nowrap overflow-hidden">Estaciones</span>
                 </router-link>
                 <router-link 
-                    to="/support" 
-                    :class="[
-                        'flex items-center rounded-lg transition-colors duration-200',
-                        sidebarCollapsed ? 'justify-center p-3' : 'justify-start p-3'
-                    ]"
-                    active-class="sidebar-active"
-                    :title="sidebarCollapsed ? 'Soporte' : ''"
-                    @click="closeOnMobile"
-                >
-                    <font-awesome-icon :icon="['fas', 'headset']" class="w-5 h-5 shrink-0" />
-                    <span v-if="!sidebarCollapsed" class="ml-4 whitespace-nowrap overflow-hidden">Soporte</span>
-                </router-link>
-                <router-link 
                     to="/tariffs" 
                     :class="[
                         'flex items-center rounded-lg transition-colors duration-200',
@@ -115,6 +114,19 @@
                 >
                     <font-awesome-icon :icon="['fas', 'chart-bar']" class="w-5 h-5 shrink-0" />
                     <span v-if="!sidebarCollapsed" class="ml-4 whitespace-nowrap overflow-hidden">Reportes</span>
+                </router-link>
+                <router-link 
+                    to="/support" 
+                    :class="[
+                        'flex items-center rounded-lg transition-colors duration-200',
+                        sidebarCollapsed ? 'justify-center p-3' : 'justify-start p-3'
+                    ]"
+                    active-class="sidebar-active"
+                    :title="sidebarCollapsed ? 'Soporte' : ''"
+                    @click="closeOnMobile"
+                >
+                    <font-awesome-icon :icon="['fas', 'headset']" class="w-5 h-5 shrink-0" />
+                    <span v-if="!sidebarCollapsed" class="ml-4 whitespace-nowrap overflow-hidden">Soporte</span>
                 </router-link>
             </nav>
 

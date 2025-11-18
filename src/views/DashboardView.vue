@@ -250,6 +250,18 @@ export default {
             }
           }
 
+          // NUEVO: Manejar mensaje directo de estado_cargador (detener_energia)
+          if (data.type === 'estado_cargador' && data.command && data.estado) {
+            chargerCurrentStates.value[chargerId] = data.estado;
+            console.log(`[Dashboard] Estado actualizado a ${data.estado} por comando ${data.command}`);
+            
+            if (data.command === 'detener_energia') {
+              showNotification(`Paro de emergencia ejecutado. Cargador #${chargerId} está fuera de servicio`, 'warning');
+            } else {
+              showNotification(`Cargador #${chargerId} cambió a: ${data.estado}`, 'info');
+            }
+          }
+
           // Confirmación de comando
           if (data.type === 'comando_enviado') {
             showNotification(`Comando enviado al Cargador #${chargerId}`, 'success');
@@ -285,13 +297,16 @@ export default {
       wsManager.reconnectAll();
     };
 
-    // Manejar paro de emergencia (AHORA cambia a fuera_servicio)
+    // Manejar paro de emergencia (AHORA cambia a fuera_de_servicio)
     const handleEmergencyStop = (chargerId) => {
       showNotification(`Ejecutando paro de emergencia en Cargador #${chargerId}...`, 'warning');
       const result = wsManager.detenerEnergia(chargerId);
       
       if (!result) {
         showNotification(`No se pudo enviar el comando al Cargador #${chargerId}`, 'error');
+      } else {
+        // Nota: El estado se actualizará automáticamente cuando llegue el mensaje del servidor
+        console.log('[Dashboard] Comando de paro de emergencia enviado, esperando actualización de estado...');
       }
     };
 

@@ -316,7 +316,7 @@ class WebSocketManager {
    * Cambia el estado de un cargador
    */
   cambiarEstado(cargadorId, nuevoEstado) {
-    const estadosValidos = ['disponible', 'ocupado', 'mantenimiento', 'fuera_servicio', 'reservado'];
+    const estadosValidos = ['disponible', 'ocupado', 'mantenimiento', 'fuera_de_servicio', 'reservado'];
     
     if (!estadosValidos.includes(nuevoEstado)) {
       console.error(`[WS Manager] Estado inválido: ${nuevoEstado}`);
@@ -459,6 +459,23 @@ class WebSocketManager {
       // Alerta
       if (payload.type === 'alerta') {
         console.warn(`[WS Manager] 🚨 Alerta en cargador ${cargadorId}:`, payload);
+      }
+    }
+
+    // NUEVO: Manejar mensaje directo de estado_cargador (detener_energia)
+    if (data.type === 'estado_cargador' && data.command) {
+      // Actualizar estado del cargador si viene en el mensaje
+      if (data.estado) {
+        conn.currentState = data.estado;
+        console.log(`[WS Manager] 🔄 Estado actualizado por comando ${data.command}: ${data.estado}`);
+        
+        // Notificar a listeners globales del cambio de estado
+        this._notifyGlobalListeners('stateChanged', { 
+          cargadorId, 
+          estado: data.estado,
+          command: data.command,
+          timestamp: data.timestamp 
+        });
       }
     }
 
