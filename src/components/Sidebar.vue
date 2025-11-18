@@ -24,12 +24,15 @@
                 'flex items-center mb-8 flex-shrink-0',
                 sidebarCollapsed ? 'flex-col gap-2 justify-center' : 'gap-3'
             ]">
-                <div :class="[
-                    'rounded flex items-center justify-center font-bold text-white transition-all duration-300',
-                    sidebarCollapsed ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-lg'
-                ]" style="background-color: #52F2B8; color: #2C403A;">
-                    EV
-                </div>
+                <!-- Logo de EVCONNECT -->
+                <img 
+                    src="/icons/logo.png" 
+                    alt="EVCONNECT" 
+                    :class="[
+                        'object-contain transition-all duration-300',
+                        sidebarCollapsed ? 'w-10 h-10' : 'w-12 h-12'
+                    ]"
+                />
                 <div v-if="!sidebarCollapsed" class="text-2xl font-extrabold">EVCONNECT</div>
                 
                 <!-- Botón colapsar (solo desktop) - SIEMPRE icono de 3 líneas -->

@@ -2,7 +2,7 @@
   <div class="min-h-screen flex items-center justify-center p-6">
     <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
       <div class="flex items-center gap-3 mb-6">
-        <img src="/public/icons/logo.png" alt="EVCONNECT logo" class="w-12 h-12 rounded object-cover" />
+        <img src="/icons/logo.png" alt="EVCONNECT logo" class="w-16 h-16 object-contain" />
         <h1 class="text-2xl font-bold">EVCONNECT</h1>
       </div>
 
