@@ -2,7 +2,7 @@
   <div class="p-8">
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-3xl font-bold">Gestión de Estaciones y Cargadores</h2>
-      <button @click="loadData" class="text-gray-500 hover:text-gray-700" title="Recargar">
+      <button @click="refreshStations" class="text-gray-500 hover:text-gray-700" title="Recargar y Reconectar WebSocket">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
@@ -107,50 +107,19 @@
           <div v-else class="p-6">
             <h4 class="text-sm font-semibold text-gray-700 uppercase mb-4">Cargadores de la estación</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div 
+              <ChargerCard 
                 v-for="charger in stationChargers[station.id_estacion]" 
                 :key="charger.id_cargador"
-                class="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
-              >
-                <div class="flex items-start justify-between mb-3">
-                  <div>
-                    <div class="font-semibold text-gray-900">Cargador #{{ charger.id_cargador }}</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ formatDate(charger.fecha_instalacion) }}</div>
-                  </div>
-                  <StatusBadge :status="charger.estado" />
-                </div>
-                
-                <div class="space-y-2 text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Tipo:</span>
-                    <span 
-                      class="px-2 py-1 text-xs rounded-full font-medium"
-                      :class="{
-                        'bg-green-100 text-green-800': charger.tipo_carga === 'lenta',
-                        'bg-blue-100 text-blue-800': charger.tipo_carga === 'rapida',
-                        'bg-purple-100 text-purple-800': charger.tipo_carga === 'ultra_rapida'
-                      }"
-                    >
-                      {{ charger.tipo_carga }}
-                    </span>
-                  </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Capacidad:</span>
-                    <span class="font-semibold text-gray-900">{{ parseFloat(charger.capacidad_kw).toFixed(0) }} kW</span>
-                  </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Precio:</span>
-                    <span class="font-semibold text-primary">{{ getChargerRate(charger) }}</span>
-                  </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Firmware:</span>
-                    <span class="text-xs text-gray-500">{{ charger.firmware_version || 'N/A' }}</span>
-                  </div>
-                </div>
-              </div>
+                :charger="charger"
+                :ws-status="chargerWSStates[charger.id_cargador] || 'desconectado'"
+                :current-state="chargerCurrentStates[charger.id_cargador]"
+                :telemetry="chargerTelemetry[charger.id_cargador]"
+                :iot-connected="chargerIoTStates[charger.id_cargador] || false"
+                :has-web-socket-support="hasSupport(charger.id_cargador)"
+                :show-actions="true"
+                :show-maintenance-button="true"
+                @maintenance="handleMaintenanceChange(charger.id_cargador)"
+              />
             </div>
           </div>
         </div>
@@ -243,17 +212,28 @@
         </form>
       </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <ToastNotification 
+      :message="toastMessage"
+      :type="toastType"
+      :show="showToast"
+      @close="showToast = false"
+    />
   </div>
 </template>
 
 <script>
 import { ref, onMounted, getCurrentInstance } from 'vue';
 import StatusBadge from '../components/StatusBadge.vue';
+import ChargerCard from '../components/ChargerCard.vue';
+import ToastNotification from '../components/ToastNotification.vue';
 import { getStationsByFranchise } from '@/services/stationsService';
-import { useWebSocketAuto } from '@/composables/useWebSocket';
+import { useChargerWebSocket, useWebSocketSupport } from '@/composables/useWebSocket';
+import { wsManager } from '@/services/websocketManager';
 
 export default {
-  components: { StatusBadge },
+  components: { StatusBadge, ChargerCard, ToastNotification },
   setup() {
     const loading = ref(true);
     const error = ref(null);
@@ -261,6 +241,20 @@ export default {
     const expandedStations = ref([]);
     const stationChargers = ref({});
     const loadingChargers = ref({});
+    
+    // WebSocket states por cargador
+    const chargerWSStates = ref({});
+    const chargerCurrentStates = ref({});
+    const chargerTelemetry = ref({});
+    const chargerIoTStates = ref({}); // NUEVO: Estado de conexión IoT
+    
+    // Toast notification
+    const toastMessage = ref('');
+    const toastType = ref('info');
+    const showToast = ref(false);
+    
+    // WebSocket Support
+    const { hasSupport } = useWebSocketSupport();
     
     const showModal = ref(false);
     const selectedStation = ref(null);
@@ -274,36 +268,107 @@ export default {
       fecha_inicio_vigencia: new Date().toISOString().split('T')[0],
       fecha_fin_vigencia: ''
     });
-    
-    // Conectar WebSocket para actualizaciones en tiempo real
-    const ws = useWebSocketAuto(
-      localStorage.getItem('evconnect_token'),
-      {
-        // Handler para actualizaciones de estaciones
-        'station:update': (data) => {
-          console.log('[Estaciones] Actualización recibida:', data);
-          loadData();
-        },
-        // Handler para cambios de estado de cargadores
-        'charger:statusChanged': (data) => {
-          console.log('[Estaciones] Estado de cargador cambió:', data);
-          // Actualizar el cargador específico si está en la lista
-          if (data.id_estacion && data.id_cargador) {
-            const station = stationsData.value.find(s => s.id_estacion === data.id_estacion);
-            if (station && station.cargadores) {
-              const charger = station.cargadores.find(c => c.id_cargador === data.id_cargador);
-              if (charger && data.estado) {
-                charger.estado = data.estado;
-              }
-            }
+
+    // Función para mostrar notificaciones
+    const showNotification = (message, type = 'info') => {
+      toastMessage.value = message;
+      toastType.value = type;
+      showToast.value = true;
+    };
+
+    // Conectar WebSocket para un cargador
+    const connectChargerWS = (chargerId) => {
+      if (!hasSupport(chargerId)) {
+        return;
+      }
+
+      showNotification(`Conectando al Cargador #${chargerId}...`, 'connecting');
+
+      wsManager.connect(chargerId, {
+        onStatusChange: (status) => {
+          chargerWSStates.value[chargerId] = status;
+          
+          if (status === 'conectado') {
+            showNotification(`✅ Conectado al Cargador #${chargerId}`, 'success');
+          } else if (status === 'reconectando') {
+            showNotification(`🔄 Reconectando al Cargador #${chargerId}...`, 'connecting');
+          } else if (status === 'error') {
+            showNotification(`❌ Error de conexión con Cargador #${chargerId}`, 'error');
           }
         },
-        // Handler de conexión
-        'connected': () => {
-          console.log('[Estaciones] WebSocket conectado');
+        onMessage: (data) => {
+          // Estado inicial (AHORA INCLUYE ESTADO IoT)
+          if (data.type === 'subscribed') {
+            chargerCurrentStates.value[chargerId] = data.estado_cargador;
+            chargerIoTStates.value[chargerId] = data.conectado || false;
+            
+            if (data.conectado === false) {
+              showNotification(`⚠️ Cargador #${chargerId}: IoT no está conectado`, 'warning');
+            }
+          }
+
+          // Notificación de conexión/desconexión del IoT (NUEVO)
+          if (data.type === 'estado_cargador' && data.hasOwnProperty('conectado')) {
+            chargerIoTStates.value[chargerId] = data.conectado;
+            
+            if (data.conectado === true) {
+              showNotification(`✅ Cargador #${chargerId}: IoT se ha CONECTADO`, 'success');
+            } else {
+              showNotification(`❌ Cargador #${chargerId}: IoT se ha DESCONECTADO`, 'error');
+            }
+          }
+
+          // Mensajes del publisher
+          if (data.from === 'publisher' && data.payload) {
+            if (data.payload.type === 'telemetria') {
+              chargerTelemetry.value[chargerId] = data.payload;
+            }
+            if (data.payload.type === 'estado_cargador') {
+              chargerCurrentStates.value[chargerId] = data.payload.estado;
+              showNotification(`🔄 Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
+            }
+            if (data.payload.type === 'alerta') {
+              showNotification(`🚨 Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
+            }
+          }
+
+          // Confirmación de comando
+          if (data.type === 'comando_enviado') {
+            showNotification(`✅ Comando enviado al Cargador #${chargerId}`, 'success');
+          }
+
+          // Error
+          if (data.type === 'error') {
+            showNotification(`❌ ${data.message}`, 'error');
+          }
         }
-      }
-    );
+      });
+    };
+
+    // Desconectar WebSocket de un cargador
+    const disconnectChargerWS = (chargerId) => {
+      wsManager.disconnect(chargerId);
+      delete chargerWSStates.value[chargerId];
+      delete chargerCurrentStates.value[chargerId];
+      delete chargerTelemetry.value[chargerId];
+      delete chargerIoTStates.value[chargerId];
+    };
+
+    // Reconectar todos los WebSocket manualmente (para botón refresh)
+    const reconnectAllChargers = () => {
+      showNotification('🔄 Reiniciando conexiones WebSocket...', 'connecting');
+      
+      // Obtener todos los cargadores actualmente conectados
+      const connectedChargers = Object.keys(chargerWSStates.value).map(id => parseInt(id));
+      
+      // Desconectar todos
+      connectedChargers.forEach(id => disconnectChargerWS(id));
+      
+      // Reconectar después de un momento
+      setTimeout(() => {
+        connectedChargers.forEach(id => connectChargerWS(id));
+      }, 1000);
+    };
     
     const loadData = async () => {
       try {
@@ -330,14 +395,44 @@ export default {
         loading.value = false;
       }
     };
+
+    // Función mejorada para recargar datos Y reconectar WebSocket
+    const refreshStations = () => {
+      // Reconectar WebSocket de cargadores activos
+      reconnectAllChargers();
+      // Recargar datos
+      loadData();
+    };
     
     const toggleStation = (stationId) => {
       const index = expandedStations.value.indexOf(stationId);
       if (index > -1) {
+        // Colapsar: desconectar cargadores de esta estación
         expandedStations.value.splice(index, 1);
+        
+        const chargers = stationChargers.value[stationId] || [];
+        chargers.forEach(charger => {
+          if (hasSupport(charger.id_cargador)) {
+            disconnectChargerWS(charger.id_cargador);
+          }
+        });
       } else {
+        // Expandir: conectar a cargadores con soporte WebSocket
         expandedStations.value.push(stationId);
+        
+        const chargers = stationChargers.value[stationId] || [];
+        chargers.forEach(charger => {
+          if (hasSupport(charger.id_cargador)) {
+            connectChargerWS(charger.id_cargador);
+          }
+        });
       }
+    };
+
+    // Manejar cambio a mantenimiento
+    const handleMaintenanceChange = (chargerId) => {
+      showNotification(`🔧 Cambiando Cargador #${chargerId} a mantenimiento...`, 'info');
+      wsManager.cambiarEstado(chargerId, 'mantenimiento');
     };
     
     const getChargerRate = (charger) => {
@@ -394,7 +489,7 @@ export default {
           payload.fecha_fin_vigencia = rateForm.value.fecha_fin_vigencia;
         }
         
-        await assignRateToStation(selectedStation.value.id_estacion, payload);
+        // await assignRateToStation(selectedStation.value.id_estacion, payload);
         
         alert(`✅ Tarifa asignada exitosamente a ${selectedStation.value.nombre_estacion}`);
         closeModal();
@@ -423,13 +518,23 @@ export default {
       savingRate,
       modalError,
       rateForm,
+      chargerWSStates,
+      chargerCurrentStates,
+      chargerTelemetry,
+      chargerIoTStates,
+      toastMessage,
+      toastType,
+      showToast,
+      hasSupport,
       loadData,
+      refreshStations,
       toggleStation,
       getChargerRate,
       formatDate,
       openAssignRateModal,
       closeModal,
-      assignRate
+      assignRate,
+      handleMaintenanceChange
     };
   }
 };

@@ -1,96 +1,189 @@
 /**
  * Composable para usar WebSocket en componentes Vue
+ * Soporta múltiples conexiones simultáneas a diferentes cargadores
  */
-import { onMounted, onUnmounted } from 'vue';
-import { websocketService } from '@/services/websocketService';
+import { ref, onUnmounted } from 'vue';
+import { wsManager } from '@/services/websocketManager';
 
-export function useWebSocket() {
-  /**
-   * Conecta al WebSocket con el token del usuario
-   * @param {string} token - JWT token
-   */
-  const connect = (token) => {
-    websocketService.connect(token);
+/**
+ * Hook para conectar a un cargador específico
+ * @param {number} cargadorId - ID del cargador
+ * @param {object} callbacks - Callbacks opcionales { onConnect, onMessage, onDisconnect, onStatusChange }
+ */
+export function useChargerWebSocket(cargadorId, callbacks = {}) {
+  const estado = ref('desconectado');
+  const currentState = ref(null);
+  const lastTelemetry = ref(null);
+  const isConnected = ref(false);
+
+  // Callback de cambio de estado
+  const onStatusChange = (newEstado) => {
+    estado.value = newEstado;
+    isConnected.value = newEstado === 'conectado';
+    if (callbacks.onStatusChange) {
+      callbacks.onStatusChange(newEstado);
+    }
   };
 
-  /**
-   * Desconecta el WebSocket
-   */
+  // Callback de mensaje
+  const onMessage = (data) => {
+    // Actualizar estado actual
+    if (data.type === 'subscribed') {
+      currentState.value = data.estado_cargador;
+    }
+
+    // Actualizar telemetría
+    if (data.from === 'publisher' && data.payload) {
+      if (data.payload.type === 'telemetria') {
+        lastTelemetry.value = data.payload;
+      }
+      if (data.payload.type === 'estado_cargador') {
+        currentState.value = data.payload.estado;
+      }
+    }
+
+    if (callbacks.onMessage) {
+      callbacks.onMessage(data);
+    }
+  };
+
+  // Conectar
+  const connect = () => {
+    if (!wsManager.hasWebSocketSupport(cargadorId)) {
+      console.warn(`[useChargerWebSocket] Cargador ${cargadorId} no tiene soporte WebSocket`);
+      return false;
+    }
+
+    return wsManager.connect(cargadorId, {
+      onConnect: callbacks.onConnect,
+      onDisconnect: callbacks.onDisconnect,
+      onError: callbacks.onError,
+      onStatusChange,
+      onMessage
+    });
+  };
+
+  // Desconectar
   const disconnect = () => {
-    websocketService.disconnect();
+    wsManager.disconnect(cargadorId);
+    estado.value = 'desconectado';
+    isConnected.value = false;
   };
 
-  /**
-   * Envía un mensaje
-   * @param {object} message - Mensaje a enviar
-   */
-  const send = (message) => {
-    websocketService.send(message);
+  // Cambiar estado
+  const cambiarEstado = (nuevoEstado) => {
+    return wsManager.cambiarEstado(cargadorId, nuevoEstado);
   };
 
-  /**
-   * Escucha un evento
-   * @param {string} event - Nombre del evento
-   * @param {function} callback - Callback a ejecutar
-   */
-  const on = (event, callback) => {
-    websocketService.on(event, callback);
+  // Detener energía
+  const detenerEnergia = () => {
+    return wsManager.detenerEnergia(cargadorId);
   };
 
-  /**
-   * Deja de escuchar un evento
-   * @param {string} event - Nombre del evento
-   * @param {function} callback - Callback a eliminar
-   */
-  const off = (event, callback) => {
-    websocketService.off(event, callback);
-  };
-
-  /**
-   * Verifica si hay conexión
-   * @returns {boolean}
-   */
-  const isConnected = () => {
-    return websocketService.isConnectionOpen();
-  };
+  // Limpiar al desmontar
+  onUnmounted(() => {
+    disconnect();
+  });
 
   return {
+    estado,
+    currentState,
+    lastTelemetry,
+    isConnected,
     connect,
     disconnect,
-    send,
-    on,
-    off,
-    isConnected
+    cambiarEstado,
+    detenerEnergia
   };
 }
 
 /**
- * Composable que conecta/desconecta automáticamente al montar/desmontar
- * @param {string} token - JWT token
- * @param {object} handlers - Objeto con handlers de eventos { event: callback }
+ * Hook para conectar múltiples cargadores
+ * @param {array} cargadorIds - Array de IDs de cargadores
+ * @param {function} onGlobalEvent - Callback para eventos globales
  */
-export function useWebSocketAuto(token, handlers = {}) {
-  const ws = useWebSocket();
+export function useMultipleChargers(cargadorIds = [], onGlobalEvent = null) {
+  const chargers = ref(new Map());
+  
+  // Conectar a todos los cargadores
+  const connectAll = () => {
+    cargadorIds.forEach(id => {
+      if (wsManager.hasWebSocketSupport(id)) {
+        chargers.value.set(id, {
+          estado: 'desconectado',
+          currentState: null,
+          lastTelemetry: null
+        });
 
-  onMounted(() => {
-    // Conectar al WebSocket
-    ws.connect(token);
+        wsManager.connect(id, {
+          onStatusChange: (newEstado) => {
+            const charger = chargers.value.get(id);
+            if (charger) {
+              charger.estado = newEstado;
+              chargers.value.set(id, { ...charger });
+            }
+          },
+          onMessage: (data) => {
+            const charger = chargers.value.get(id);
+            if (!charger) return;
 
-    // Registrar handlers
-    Object.keys(handlers).forEach(event => {
-      ws.on(event, handlers[event]);
+            if (data.type === 'subscribed') {
+              charger.currentState = data.estado_cargador;
+            }
+
+            if (data.from === 'publisher' && data.payload) {
+              if (data.payload.type === 'telemetria') {
+                charger.lastTelemetry = data.payload;
+              }
+              if (data.payload.type === 'estado_cargador') {
+                charger.currentState = data.payload.estado;
+              }
+            }
+
+            chargers.value.set(id, { ...charger });
+          }
+        });
+      }
     });
-  });
+  };
 
+  // Desconectar todos
+  const disconnectAll = () => {
+    wsManager.disconnectAll();
+    chargers.value.clear();
+  };
+
+  // Registrar listener global si se proporciona
+  let removeGlobalListener = null;
+  if (onGlobalEvent) {
+    removeGlobalListener = wsManager.onGlobal(onGlobalEvent);
+  }
+
+  // Limpiar al desmontar
   onUnmounted(() => {
-    // Limpiar handlers
-    Object.keys(handlers).forEach(event => {
-      ws.off(event, handlers[event]);
-    });
-
-    // Desconectar
-    ws.disconnect();
+    disconnectAll();
+    if (removeGlobalListener) {
+      removeGlobalListener();
+    }
   });
 
-  return ws;
+  return {
+    chargers,
+    connectAll,
+    disconnectAll,
+    cambiarEstado: (cargadorId, estado) => wsManager.cambiarEstado(cargadorId, estado),
+    detenerEnergia: (cargadorId) => wsManager.detenerEnergia(cargadorId),
+    isConnected: (cargadorId) => wsManager.isConnected(cargadorId),
+    getStatus: (cargadorId) => wsManager.getStatus(cargadorId)
+  };
+}
+
+/**
+ * Hook simplificado para verificar si un cargador tiene soporte WebSocket
+ */
+export function useWebSocketSupport() {
+  return {
+    hasSupport: (cargadorId) => wsManager.hasWebSocketSupport(cargadorId),
+    supportedChargers: [2, 3]
+  };
 }

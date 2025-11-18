@@ -6,6 +6,7 @@
 import { post } from '@/utils/http';
 import { API_ENDPOINTS } from '@/config/api';
 import { setSession, clearSession } from '@/utils/session';
+import { wsManager } from './websocketManager';
 
 /**
  * Login de usuario backoffice
@@ -49,9 +50,18 @@ export async function login(email, password) {
 
 /**
  * Logout del usuario
+ * Cierra todas las conexiones WebSocket activas antes de limpiar la sesión
  */
 export function logout() {
+  console.log('[Auth] Cerrando sesión y desconectando WebSockets...');
+  
+  // Desconectar todos los WebSocket activos
+  wsManager.disconnectAll();
+  
+  // Limpiar la sesión
   clearSession();
+  
+  console.log('[Auth] Sesión cerrada exitosamente');
 }
 
 export default {
