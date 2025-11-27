@@ -21,7 +21,7 @@
             <option value="en_progreso">En Progreso</option>
             <option value="finalizada">Finalizada</option>
             <option value="cancelada">Cancelada</option>
-            <option value="error">Error</option>
+            <option value="fallida">Fallida</option>
           </select>
         </div>
         <div>
