@@ -1,36 +1,36 @@
 /**
- * WebSocket Manager - Gestor de múltiples conexiones WebSocket
- * Permite conectar múltiples cargadores simultáneamente
+ * WebSocket Manager - Gestor de conexiones WebSocket por estación
+ * Conecta a estaciones completas en lugar de cargadores individuales
  */
 
 const WS_BASE_URL = 'wss://evconnect-3ydy.onrender.com/ws';
-const CARGADORES_CON_WS = [2, 3]; // Solo estos cargadores tienen WebSocket disponible
+const ESTACIONES_CON_WS = [1, 2]; // Estaciones con WebSocket disponible
 
 class WebSocketManager {
   constructor() {
-    // Mapa de conexiones: { cargadorId: { ws, estado, listeners, reconnectAttempts, iotConectado } }
+    // Mapa de conexiones: { estacionId: { ws, estado, listeners, reconnectAttempts, cargadores } }
     this.connections = new Map();
-    this.maxReconnectAttempts = 10; // Aumentado de 5 a 10
-    this.reconnectDelay = 5000; // Aumentado de 3s a 5s
-    this.globalListeners = []; // Listeners globales para todas las conexiones
-    this.reconnectTimers = new Map(); // Timers de reconexión por cargador
+    this.maxReconnectAttempts = 10;
+    this.reconnectDelay = 5000;
+    this.globalListeners = [];
+    this.reconnectTimers = new Map();
   }
 
   /**
-   * Verifica si un cargador tiene WebSocket disponible
+   * Verifica si una estación tiene WebSocket disponible
    */
-  hasWebSocketSupport(cargadorId) {
-    return CARGADORES_CON_WS.includes(parseInt(cargadorId));
+  hasWebSocketSupport(estacionId) {
+    return ESTACIONES_CON_WS.includes(parseInt(estacionId));
   }
 
   /**
-   * Conecta a un cargador específico
+   * Conecta a una estación específica
    */
-  connect(cargadorId, callbacks = {}) {
-    const id = parseInt(cargadorId);
+  connect(estacionId, callbacks = {}) {
+    const id = parseInt(estacionId);
     
     if (!this.hasWebSocketSupport(id)) {
-      console.warn(`[WS Manager] Cargador ${id} no tiene soporte WebSocket`);
+      console.warn(`[WS Manager] Estación ${id} no tiene soporte WebSocket`);
       return false;
     }
 
@@ -38,13 +38,13 @@ class WebSocketManager {
     if (this.connections.has(id)) {
       const conn = this.connections.get(id);
       if (conn.estado === 'conectado' || conn.estado === 'conectando') {
-        console.log(`[WS Manager] Ya existe conexión activa para cargador ${id}`);
+        console.log(`[WS Manager] Ya existe conexión activa para estación ${id}`);
         return true;
       }
     }
 
-    const url = `${WS_BASE_URL}?cargadorId=${id}&role=client`;
-    console.log(`[WS Manager] Conectando al cargador ${id}...`);
+    const url = `${WS_BASE_URL}?estacionId=${id}&role=monitor`;
+    console.log(`[WS Manager] Conectando a la estación ${id}...`);
 
     const ws = new WebSocket(url);
     
@@ -53,14 +53,12 @@ class WebSocketManager {
       estado: 'conectando',
       listeners: [],
       reconnectAttempts: 0,
-      lastTelemetry: null,
-      currentState: null,
-      iotConectado: false, // Estado de conexión del IoT físico
+      cargadores: {}, // Mapa de estados de cargadores: { id_cargador: { estado, tipo_carga, sesion_activa, etc } }
       callbacks: callbacks || {}
     };
 
     this.connections.set(id, connectionData);
-    this._notifyGlobalListeners('status', { cargadorId: id, estado: 'conectando' });
+    this._notifyGlobalListeners('status', { estacionId: id, estado: 'conectando' });
 
     // Ejecutar callback de estado si existe
     if (callbacks.onStatusChange) {
@@ -68,11 +66,11 @@ class WebSocketManager {
     }
 
     ws.onopen = () => {
-      console.log(`[WS Manager] ✅ Conectado al cargador ${id}`);
+      console.log(`[WS Manager] ✅ Conectado a la estación ${id}`);
       connectionData.estado = 'conectado';
       connectionData.reconnectAttempts = 0;
       
-      this._notifyGlobalListeners('status', { cargadorId: id, estado: 'conectado' });
+      this._notifyGlobalListeners('status', { estacionId: id, estado: 'conectado' });
       
       if (callbacks.onStatusChange) {
         callbacks.onStatusChange('conectado');
@@ -85,12 +83,12 @@ class WebSocketManager {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log(`[WS Manager] 📨 Mensaje del cargador ${id}:`, data);
+        console.log(`[WS Manager] 📨 Mensaje de la estación ${id}:`, data);
 
         // Procesar mensaje según el tipo
         this._processMessage(id, data);
 
-        // Notificar a listeners específicos del cargador
+        // Notificar a listeners específicos de la estación
         connectionData.listeners.forEach(listener => {
           if (listener.callback) {
             listener.callback(data);
@@ -98,7 +96,7 @@ class WebSocketManager {
         });
 
         // Notificar a listeners globales
-        this._notifyGlobalListeners('message', { cargadorId: id, data });
+        this._notifyGlobalListeners('message', { estacionId: id, data });
 
         // Ejecutar callback de mensaje si existe
         if (callbacks.onMessage) {
@@ -106,15 +104,15 @@ class WebSocketManager {
         }
 
       } catch (error) {
-        console.error(`[WS Manager] Error al parsear mensaje del cargador ${id}:`, error);
+        console.error(`[WS Manager] Error al parsear mensaje de la estación ${id}:`, error);
       }
     };
 
     ws.onerror = (error) => {
-      console.error(`[WS Manager] ❌ Error en cargador ${id}:`, error);
+      console.error(`[WS Manager] ❌ Error en estación ${id}:`, error);
       connectionData.estado = 'error';
       
-      this._notifyGlobalListeners('status', { cargadorId: id, estado: 'error' });
+      this._notifyGlobalListeners('status', { estacionId: id, estado: 'error' });
       
       if (callbacks.onStatusChange) {
         callbacks.onStatusChange('error');
@@ -125,10 +123,10 @@ class WebSocketManager {
     };
 
     ws.onclose = () => {
-      console.log(`[WS Manager] 🔌 Desconectado del cargador ${id}`);
+      console.log(`[WS Manager] 🔌 Desconectado de la estación ${id}`);
       connectionData.estado = 'desconectado';
       
-      this._notifyGlobalListeners('status', { cargadorId: id, estado: 'desconectado' });
+      this._notifyGlobalListeners('status', { estacionId: id, estado: 'desconectado' });
       
       if (callbacks.onStatusChange) {
         callbacks.onStatusChange('desconectado');
@@ -143,7 +141,7 @@ class WebSocketManager {
         connectionData.estado = 'reconectando';
         
         this._notifyGlobalListeners('status', { 
-          cargadorId: id, 
+          estacionId: id, 
           estado: 'reconectando', 
           intento: connectionData.reconnectAttempts,
           maxIntentos: this.maxReconnectAttempts
@@ -153,7 +151,7 @@ class WebSocketManager {
           callbacks.onStatusChange('reconectando');
         }
 
-        console.log(`[WS Manager] 🔄 Reconectando al cargador ${id} (${connectionData.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+        console.log(`[WS Manager] 🔄 Reconectando a la estación ${id} (${connectionData.reconnectAttempts}/${this.maxReconnectAttempts})...`);
         
         // Guardar timer de reconexión
         const timer = setTimeout(() => {
@@ -175,8 +173,8 @@ class WebSocketManager {
         
         this.reconnectTimers.set(id, timer);
       } else {
-        console.log(`[WS Manager] ⚠️ Máximo de reintentos alcanzado para cargador ${id}`);
-        this._notifyGlobalListeners('maxReconnectReached', { cargadorId: id });
+        console.log(`[WS Manager] ⚠️ Máximo de reintentos alcanzado para estación ${id}`);
+        this._notifyGlobalListeners('maxReconnectReached', { estacionId: id });
       }
     };
 
@@ -184,17 +182,17 @@ class WebSocketManager {
   }
 
   /**
-   * Desconecta de un cargador específico
+   * Desconecta de una estación específica
    */
-  disconnect(cargadorId) {
-    const id = parseInt(cargadorId);
+  disconnect(estacionId) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
 
     if (!conn) {
       return;
     }
 
-    console.log(`[WS Manager] Desconectando del cargador ${id}...`);
+    console.log(`[WS Manager] Desconectando de la estación ${id}...`);
     
     // Limpiar timer de reconexión si existe
     if (this.reconnectTimers.has(id)) {
@@ -210,14 +208,14 @@ class WebSocketManager {
     }
 
     this.connections.delete(id);
-    this._notifyGlobalListeners('status', { cargadorId: id, estado: 'desconectado' });
+    this._notifyGlobalListeners('status', { estacionId: id, estado: 'desconectado' });
   }
 
   /**
-   * Desconecta todos los cargadores
+   * Desconecta todas las estaciones
    */
   disconnectAll() {
-    console.log('[WS Manager] Desconectando todos los cargadores...');
+    console.log('[WS Manager] Desconectando todas las estaciones...');
     const ids = Array.from(this.connections.keys());
     ids.forEach(id => this.disconnect(id));
     
@@ -226,15 +224,15 @@ class WebSocketManager {
   }
 
   /**
-   * Reconecta manualmente un cargador (útil para botón refresh)
+   * Reconecta manualmente una estación (útil para botón refresh)
    */
-  reconnect(cargadorId) {
-    const id = parseInt(cargadorId);
+  reconnect(estacionId) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
     
     if (conn) {
       const savedCallbacks = conn.callbacks;
-      console.log(`[WS Manager] 🔄 Reconexión manual del cargador ${id}...`);
+      console.log(`[WS Manager] 🔄 Reconexión manual de la estación ${id}...`);
       
       // Resetear contador de intentos
       this.disconnect(id);
@@ -244,15 +242,15 @@ class WebSocketManager {
         this.connect(id, savedCallbacks);
       }, 500);
     } else {
-      console.warn(`[WS Manager] No hay conexión previa para el cargador ${id}`);
+      console.warn(`[WS Manager] No hay conexión previa para la estación ${id}`);
     }
   }
 
   /**
-   * Reconecta todos los cargadores manualmente
+   * Reconecta todas las estaciones manualmente
    */
   reconnectAll() {
-    console.log('[WS Manager] 🔄 Reconexión manual de todos los cargadores...');
+    console.log('[WS Manager] 🔄 Reconexión manual de todas las estaciones...');
     const ids = Array.from(this.connections.keys());
     const callbacks = {};
     
@@ -278,109 +276,52 @@ class WebSocketManager {
   }
 
   /**
-   * Envía un comando a un cargador específico
+   * Obtiene el estado actual de una estación y sus cargadores
    */
-  sendCommand(cargadorId, command, params = {}) {
-    const id = parseInt(cargadorId);
-    const conn = this.connections.get(id);
-
-    if (!conn) {
-      console.warn(`[WS Manager] No hay conexión para el cargador ${id}`);
-      return false;
-    }
-
-    if (conn.ws.readyState !== WebSocket.OPEN) {
-      console.warn(`[WS Manager] La conexión al cargador ${id} no está abierta (estado: ${conn.estado})`);
-      return false;
-    }
-
-    const message = {
-      command,
-      ...params
-    };
-
-    try {
-      conn.ws.send(JSON.stringify(message));
-      console.log(`[WS Manager] 📤 Comando enviado al cargador ${id}:`, message);
-      
-      this._notifyGlobalListeners('commandSent', { cargadorId: id, command: message });
-      
-      return true;
-    } catch (error) {
-      console.error(`[WS Manager] Error al enviar comando al cargador ${id}:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Cambia el estado de un cargador
-   */
-  cambiarEstado(cargadorId, nuevoEstado) {
-    const estadosValidos = ['disponible', 'ocupado', 'mantenimiento', 'fuera_de_servicio', 'reservado'];
-    
-    if (!estadosValidos.includes(nuevoEstado)) {
-      console.error(`[WS Manager] Estado inválido: ${nuevoEstado}`);
-      return false;
-    }
-
-    return this.sendCommand(cargadorId, 'cambiar_estado', { estado: nuevoEstado });
-  }
-
-  /**
-   * Detiene la energía (paro de emergencia)
-   */
-  detenerEnergia(cargadorId) {
-    return this.sendCommand(cargadorId, 'detener_energia');
-  }
-
-  /**
-   * Obtiene el estado actual de un cargador
-   */
-  getStatus(cargadorId) {
-    const id = parseInt(cargadorId);
+  getStatus(estacionId) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
 
     if (!conn) {
       return {
         conectado: false,
         estado: 'desconectado',
-        currentState: null,
-        lastTelemetry: null,
-        iotConectado: false
+        cargadores: {}
       };
     }
 
     return {
       conectado: conn.estado === 'conectado',
       estado: conn.estado,
-      currentState: conn.currentState,
-      lastTelemetry: conn.lastTelemetry,
-      iotConectado: conn.iotConectado
+      cargadores: conn.cargadores || {}
     };
   }
 
   /**
-   * Verifica si hay conexión activa con un cargador
+   * Verifica si hay conexión activa con una estación
    */
-  isConnected(cargadorId) {
-    const id = parseInt(cargadorId);
+  isConnected(estacionId) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
     return conn && conn.estado === 'conectado' && conn.ws.readyState === WebSocket.OPEN;
   }
 
   /**
-   * Verifica si el IoT del cargador está conectado
+   * Verifica si un cargador específico está conectado (IoT online)
    */
-  isIoTConnected(cargadorId) {
-    const id = parseInt(cargadorId);
+  isChargerConnected(estacionId, cargadorId) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
-    return conn && conn.iotConectado === true;
+    if (!conn || !conn.cargadores) return false;
+    
+    const cargador = conn.cargadores[parseInt(cargadorId)];
+    return cargador && cargador.iot_conectado === true;
   }
 
   /**
-   * Obtiene todos los cargadores conectados
+   * Obtiene todas las estaciones conectadas
    */
-  getConnectedChargers() {
+  getConnectedStations() {
     const connected = [];
     this.connections.forEach((conn, id) => {
       if (conn.estado === 'conectado') {
@@ -391,7 +332,16 @@ class WebSocketManager {
   }
 
   /**
-   * Registra un listener global para todos los cargadores
+   * Obtiene todos los cargadores de una estación
+   */
+  getStationChargers(estacionId) {
+    const id = parseInt(estacionId);
+    const conn = this.connections.get(id);
+    return conn ? conn.cargadores || {} : {};
+  }
+
+  /**
+   * Registra un listener global para todas las estaciones
    */
   onGlobal(callback) {
     this.globalListeners.push(callback);
@@ -401,14 +351,14 @@ class WebSocketManager {
   }
 
   /**
-   * Registra un listener específico para un cargador
+   * Registra un listener específico para una estación
    */
-  on(cargadorId, callback) {
-    const id = parseInt(cargadorId);
+  on(estacionId, callback) {
+    const id = parseInt(estacionId);
     const conn = this.connections.get(id);
 
     if (!conn) {
-      console.warn(`[WS Manager] No hay conexión para el cargador ${id}`);
+      console.warn(`[WS Manager] No hay conexión para la estación ${id}`);
       return () => {};
     }
 
@@ -422,86 +372,52 @@ class WebSocketManager {
   }
 
   /**
-   * Procesa un mensaje recibido
+   * Procesa un mensaje recibido del WebSocket
    */
-  _processMessage(cargadorId, data) {
-    const conn = this.connections.get(cargadorId);
+  _processMessage(estacionId, data) {
+    const conn = this.connections.get(estacionId);
     if (!conn) return;
 
-    // Mensaje de suscripción inicial (AHORA INCLUYE ESTADO IoT)
-    if (data.type === 'subscribed') {
-      conn.currentState = data.estado_cargador;
-      conn.iotConectado = data.conectado || false; // Nuevo campo
-      console.log(`[WS Manager] Estado inicial del cargador ${cargadorId}: ${data.estado_cargador}, IoT: ${conn.iotConectado ? 'CONECTADO' : 'DESCONECTADO'}`);
+    // Estado de estación (puede ser inicial o actualización)
+    if (data.type === 'estado_estacion' && data.cargadores) {
+      const esInicial = !conn.cargadores || Object.keys(conn.cargadores).length === 0;
+      console.log(`[WS Manager] ${esInicial ? '📡 Estado inicial' : '🔄 Actualización'} para estación ${estacionId}:`, data.cargadores);
       
-      // Notificar cambio de estado IoT
-      this._notifyGlobalListeners('iotStatus', { 
-        cargadorId, 
-        iotConectado: conn.iotConectado 
-      });
-    }
+      // Inicializar si no existe
+      if (!conn.cargadores) conn.cargadores = {};
+      
+      // Actualizar todos los cargadores recibidos
+      data.cargadores.forEach(cargador => {
+        conn.cargadores[cargador.id_cargador] = {
+          id: cargador.id_cargador,
+          tipo_carga: cargador.tipo_carga,
+          capacidad_kw: cargador.capacidad_kw,
+          estado: cargador.estado,
+          conectado: cargador.conectado, // ✅ Campo correcto del backend
+          sesion_activa: cargador.sesion_activa || null,
+          timestamp: data.timestamp
+        };
 
-    // Mensajes del publisher (IoT)
-    if (data.from === 'publisher' && data.payload) {
-      const payload = data.payload;
-
-      // Telemetría
-      if (payload.type === 'telemetria') {
-        conn.lastTelemetry = payload;
-      }
-
-      // Cambio de estado del cargador
-      if (payload.type === 'estado_cargador') {
-        conn.currentState = payload.estado;
-        console.log(`[WS Manager] Estado actualizado del cargador ${cargadorId}: ${payload.estado}`);
-      }
-
-      // Alerta
-      if (payload.type === 'alerta') {
-        console.warn(`[WS Manager] 🚨 Alerta en cargador ${cargadorId}:`, payload);
-      }
-    }
-
-    // NUEVO: Manejar mensaje directo de estado_cargador (detener_energia)
-    if (data.type === 'estado_cargador' && data.command) {
-      // Actualizar estado del cargador si viene en el mensaje
-      if (data.estado) {
-        conn.currentState = data.estado;
-        console.log(`[WS Manager] 🔄 Estado actualizado por comando ${data.command}: ${data.estado}`);
-        
-        // Notificar a listeners globales del cambio de estado
-        this._notifyGlobalListeners('stateChanged', { 
-          cargadorId, 
-          estado: data.estado,
-          command: data.command,
-          timestamp: data.timestamp 
+        // Notificar cambio de cargador
+        this._notifyGlobalListeners('chargerUpdate', {
+          estacionId,
+          cargadorId: cargador.id_cargador,
+          estado: cargador.estado,
+          conectado: cargador.conectado, // ✅ Campo correcto
+          sesion_activa: cargador.sesion_activa
         });
-      }
-    }
-
-    // Notificación de conexión/desconexión del IoT (NUEVO)
-    if (data.type === 'estado_cargador' && data.hasOwnProperty('conectado')) {
-      const iotConectado = data.conectado;
-      conn.iotConectado = iotConectado;
-      
-      console.log(`[WS Manager] ${iotConectado ? '✅ IoT CONECTADO' : '❌ IoT DESCONECTADO'} - Cargador ${cargadorId}`);
-      
-      // Notificar a listeners globales
-      this._notifyGlobalListeners('iotStatus', { 
-        cargadorId, 
-        iotConectado,
-        timestamp: data.timestamp 
       });
     }
 
     // Confirmación de comando
     if (data.type === 'comando_enviado') {
-      console.log(`[WS Manager] ✅ Comando confirmado para cargador ${cargadorId}: ${data.command}`);
+      console.log(`[WS Manager] ✅ Comando confirmado para estación ${estacionId}: ${data.command}`);
     }
 
     // Error
     if (data.type === 'error') {
-      console.error(`[WS Manager] ❌ Error del servidor para cargador ${cargadorId}:`, data.message);
+      console.error(`[WS Manager] ❌ Error del servidor para estación ${estacionId}:`, data.message);
+      this._notifyGlobalListeners('error', { estacionId, message: data.message });
     }
   }
 

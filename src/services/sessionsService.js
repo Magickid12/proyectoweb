@@ -3,7 +3,7 @@
  * Gestiona el historial de sesiones de carga
  */
 
-import { get } from '@/utils/http';
+import { get, post } from '@/utils/http';
 import { API_ENDPOINTS } from '@/config/api';
 
 /**
@@ -68,7 +68,36 @@ export async function getSessionById(id) {
   }
 }
 
+/**
+ * Cambia el estado de un cargador a "fuera de servicio" (paro de emergencia)
+ * @param {number} id_cargador - ID del cargador
+ * @returns {Promise<object>} - Resultado de la operación
+ */
+export async function stopChargerByMonitor(id_cargador) {
+  try {
+    const response = await post(API_ENDPOINTS.SESSIONS.STOP_BY_CHARGER(id_cargador));
+    
+    const isSuccess = response.success === true || response.status === 200;
+    
+    if (isSuccess) {
+      return {
+        success: true,
+        data: response.data,
+        message: response.message || 'Cargador detenido exitosamente'
+      };
+    }
+
+    throw new Error(response.message || 'Error al detener cargador');
+  } catch (error) {
+    throw {
+      message: error.message || 'Error al ejecutar paro de emergencia',
+      status: error.status,
+    };
+  }
+}
+
 export default {
   getSessions,
   getSessionById,
+  stopChargerByMonitor,
 };

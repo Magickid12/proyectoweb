@@ -105,7 +105,7 @@
                 :current-state="chargerCurrentStates[charger.id_cargador]"
                 :telemetry="chargerTelemetry[charger.id_cargador]"
                 :iot-connected="chargerIoTStates[charger.id_cargador] || false"
-                :has-web-socket-support="hasSupport(charger.id_cargador)"
+                :has-web-socket-support="hasSupport(station.id_estacion)"
                 :show-actions="true"
                 :show-maintenance-button="true"
                 @maintenance="handleMaintenanceChange(charger.id_cargador)"
@@ -127,13 +127,13 @@
 </template>
 
 <script>
-import { ref, onMounted, getCurrentInstance } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import ChargerCard from '../components/ChargerCard.vue';
 import ToastNotification from '../components/ToastNotification.vue';
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 import { getStationsByFranchise } from '@/services/stationsService';
-import { useChargerWebSocket, useWebSocketSupport } from '@/composables/useWebSocket';
+import { stopChargerByMonitor } from '@/services/sessionsService';
 import { wsManager } from '@/services/websocketManager';
 
 export default {
@@ -150,15 +150,12 @@ export default {
     const chargerWSStates = ref({});
     const chargerCurrentStates = ref({});
     const chargerTelemetry = ref({});
-    const chargerIoTStates = ref({}); // NUEVO: Estado de conexión IoT
+    const chargerIoTStates = ref({});
     
     // Toast notification
     const toastMessage = ref('');
     const toastType = ref('info');
     const showToast = ref(false);
-    
-    // WebSocket Support
-    const { hasSupport } = useWebSocketSupport();
 
     // Función para mostrar notificaciones
     const showNotification = (message, type = 'info') => {
@@ -167,75 +164,67 @@ export default {
       showToast.value = true;
     };
 
-    // Conectar WebSocket para un cargador
-    const connectChargerWS = (chargerId) => {
-      if (!hasSupport(chargerId)) {
+    // Conectar WebSocket para una estación completa
+    const connectStationWS = (stationId, stationName) => {
+      if (!wsManager.hasWebSocketSupport(stationId)) {
         return;
       }
 
-      showNotification(`Conectando al Cargador #${chargerId}...`, 'connecting');
+      showNotification(`Conectando a ${stationName}...`, 'connecting');
 
-      wsManager.connect(chargerId, {
+      wsManager.connect(stationId, {
         onStatusChange: (status) => {
-          chargerWSStates.value[chargerId] = status;
-          
+          // Actualizar el estado WS de TODOS los cargadores de esta estación
+          const chargers = stationChargers.value[stationId] || [];
+          chargers.forEach(charger => {
+            chargerWSStates.value[charger.id_cargador] = status;
+          });
+
           if (status === 'conectado') {
-            showNotification(`Conectado al Cargador #${chargerId}`, 'success');
+            showNotification(`Conectado a ${stationName}`, 'success');
           } else if (status === 'reconectando') {
-            showNotification(`Reconectando al Cargador #${chargerId}...`, 'connecting');
+            showNotification(`Reconectando a ${stationName}...`, 'connecting');
           } else if (status === 'error') {
-            showNotification(`Error de conexión con Cargador #${chargerId}`, 'error');
+            showNotification(`Error de conexión con ${stationName}`, 'error');
           }
         },
         onMessage: (data) => {
-          // Estado inicial (AHORA INCLUYE ESTADO IoT)
-          if (data.type === 'subscribed') {
-            chargerCurrentStates.value[chargerId] = data.estado_cargador;
-            chargerIoTStates.value[chargerId] = data.conectado || false;
-          }
-
-          // Notificación de conexión/desconexión del dispositivo (NUEVO)
-          if (data.type === 'estado_cargador' && data.hasOwnProperty('conectado')) {
-            chargerIoTStates.value[chargerId] = data.conectado;
+          // Estado de estación (inicial o actualización)
+          if (data.type === 'estado_estacion' && data.cargadores) {
+            data.cargadores.forEach(cargador => {
+              const cargadorId = cargador.id_cargador;
+              const estadoAnterior = chargerCurrentStates.value[cargadorId];
+              const conectadoAnterior = chargerIoTStates.value[cargadorId];
+              
+              chargerCurrentStates.value[cargadorId] = cargador.estado;
+              chargerIoTStates.value[cargadorId] = cargador.conectado || false;
+              
+              // Notificar cambios significativos
+              if (estadoAnterior && estadoAnterior !== cargador.estado) {
+                showNotification(
+                  `Cargador #${cargadorId} cambió a: ${cargador.estado}`,
+                  cargador.estado === 'fuera_de_servicio' ? 'warning' : 'info'
+                );
+              }
+              
+              if (conectadoAnterior !== undefined && conectadoAnterior !== cargador.conectado) {
+                showNotification(
+                  `Cargador #${cargadorId} ${cargador.conectado ? 'conectado' : 'desconectado'}`,
+                  cargador.conectado ? 'success' : 'error'
+                );
+              }
+            });
             
-            if (data.conectado === true) {
-              showNotification(`Cargador #${chargerId} se ha conectado`, 'success');
-            } else {
-              showNotification(`Cargador #${chargerId} se ha desconectado`, 'error');
-            }
-          }
-
-          // Mensajes del publisher
-          if (data.from === 'publisher' && data.payload) {
-            if (data.payload.type === 'telemetria') {
-              chargerTelemetry.value[chargerId] = data.payload;
-            }
-            if (data.payload.type === 'estado_cargador') {
-              chargerCurrentStates.value[chargerId] = data.payload.estado;
-              showNotification(`Cargador #${chargerId} cambió a: ${data.payload.estado}`, 'info');
-            }
-            if (data.payload.type === 'alerta') {
-              showNotification(`Alerta en Cargador #${chargerId}: ${data.payload.descripcion}`, 'warning');
-            }
-          }
-
-          // NUEVO: Manejar mensaje directo de estado_cargador (cambiar_estado, detener_energia)
-          if (data.type === 'estado_cargador' && data.command && data.estado) {
-            chargerCurrentStates.value[chargerId] = data.estado;
-            console.log(`[Stations] Estado actualizado a ${data.estado} por comando ${data.command}`);
-            
-            if (data.command === 'detener_energia') {
-              showNotification(`Paro de emergencia ejecutado. Cargador #${chargerId} está fuera de servicio`, 'warning');
-            } else if (data.command === 'cambiar_estado') {
-              showNotification(`Cargador #${chargerId} cambió a: ${data.estado}`, 'success');
-            } else {
-              showNotification(`Cargador #${chargerId} cambió a: ${data.estado}`, 'info');
+            // Log solo en primer mensaje (inicial)
+            const esInicial = !estadoAnterior;
+            if (esInicial) {
+              console.log(`[Stations] Estado inicial sincronizado para ${stationName}:`, data.cargadores);
             }
           }
 
           // Confirmación de comando
           if (data.type === 'comando_enviado') {
-            showNotification(`Comando enviado al Cargador #${chargerId}`, 'success');
+            showNotification(`Comando enviado a ${stationName}`, 'success');
           }
 
           // Error
@@ -246,29 +235,32 @@ export default {
       });
     };
 
-    // Desconectar WebSocket de un cargador
-    const disconnectChargerWS = (chargerId) => {
-      wsManager.disconnect(chargerId);
-      delete chargerWSStates.value[chargerId];
-      delete chargerCurrentStates.value[chargerId];
-      delete chargerTelemetry.value[chargerId];
-      delete chargerIoTStates.value[chargerId];
+    // Desconectar WebSocket de una estación
+    const disconnectStationWS = (stationId) => {
+      wsManager.disconnect(stationId);
+      // Limpiar estados de los cargadores de esta estación
+      const chargers = stationChargers.value[stationId] || [];
+      chargers.forEach(charger => {
+        delete chargerWSStates.value[charger.id_cargador];
+        delete chargerCurrentStates.value[charger.id_cargador];
+        delete chargerTelemetry.value[charger.id_cargador];
+        delete chargerIoTStates.value[charger.id_cargador];
+      });
+    };
+
+    // Desconectar todas las estaciones
+    const disconnectAllStations = () => {
+      wsManager.disconnectAll();
+      chargerWSStates.value = {};
+      chargerCurrentStates.value = {};
+      chargerTelemetry.value = {};
+      chargerIoTStates.value = {};
     };
 
     // Reconectar todos los WebSocket manualmente (para botón refresh)
-    const reconnectAllChargers = () => {
+    const reconnectAllStations = () => {
       showNotification('Reiniciando conexiones WebSocket...', 'connecting');
-      
-      // Obtener todos los cargadores actualmente conectados
-      const connectedChargers = Object.keys(chargerWSStates.value).map(id => parseInt(id));
-      
-      // Desconectar todos
-      connectedChargers.forEach(id => disconnectChargerWS(id));
-      
-      // Reconectar después de un momento
-      setTimeout(() => {
-        connectedChargers.forEach(id => connectChargerWS(id));
-      }, 1000);
+      wsManager.reconnectAll();
     };
     
     const loadData = async () => {
@@ -299,41 +291,58 @@ export default {
 
     // Función mejorada para recargar datos Y reconectar WebSocket
     const refreshStations = () => {
-      // Reconectar WebSocket de cargadores activos
-      reconnectAllChargers();
+      // Reconectar WebSocket de estaciones activas
+      reconnectAllStations();
       // Recargar datos
       loadData();
     };
     
     const toggleStation = (stationId) => {
       const index = expandedStations.value.indexOf(stationId);
+      const station = stationsData.value.find(s => s.id_estacion === stationId);
+      
       if (index > -1) {
-        // Colapsar: desconectar cargadores de esta estación
+        // Colapsar: desconectar estación
         expandedStations.value.splice(index, 1);
         
-        const chargers = stationChargers.value[stationId] || [];
-        chargers.forEach(charger => {
-          if (hasSupport(charger.id_cargador)) {
-            disconnectChargerWS(charger.id_cargador);
-          }
-        });
+        if (wsManager.hasWebSocketSupport(stationId)) {
+          disconnectStationWS(stationId);
+        }
       } else {
-        // Expandir: conectar a cargadores con soporte WebSocket
+        // Expandir: conectar a la estación con soporte WebSocket
         expandedStations.value.push(stationId);
         
-        const chargers = stationChargers.value[stationId] || [];
-        chargers.forEach(charger => {
-          if (hasSupport(charger.id_cargador)) {
-            connectChargerWS(charger.id_cargador);
-          }
-        });
+        if (wsManager.hasWebSocketSupport(stationId) && station) {
+          connectStationWS(stationId, station.nombre_estacion);
+        }
       }
     };
 
-    // Manejar cambio a mantenimiento
-    const handleMaintenanceChange = (chargerId) => {
+    // Manejar cambio a mantenimiento (via REST API)
+    const handleMaintenanceChange = async (chargerId) => {
+      if (!confirm(`¿Está seguro de poner el Cargador #${chargerId} en mantenimiento?`)) {
+        return;
+      }
+
       showNotification(`Cambiando Cargador #${chargerId} a mantenimiento...`, 'info');
-      wsManager.cambiarEstado(chargerId, 'mantenimiento');
+      
+      try {
+        // Usar el endpoint de paro de emergencia (cambia a fuera_de_servicio)
+        const result = await stopChargerByMonitor(chargerId);
+        
+        if (result.success) {
+          showNotification(
+            `Cargador #${chargerId} puesto en mantenimiento`, 
+            'success'
+          );
+          // El WebSocket notificará el cambio de estado automáticamente
+        }
+      } catch (error) {
+        showNotification(
+          error.message || `Error al cambiar estado del Cargador #${chargerId}`, 
+          'error'
+        );
+      }
     };
     
     const formatDate = (dateString) => {
@@ -344,6 +353,10 @@ export default {
     
     onMounted(() => {
       loadData();
+    });
+
+    onUnmounted(() => {
+      disconnectAllStations();
     });
     
     return {
@@ -360,7 +373,7 @@ export default {
       toastMessage,
       toastType,
       showToast,
-      hasSupport,
+      hasSupport: (stationId) => wsManager.hasWebSocketSupport(stationId),
       loadData,
       refreshStations,
       toggleStation,

@@ -3,7 +3,7 @@
  */
 
 // URL base de la API
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+export const API_URL = import.meta.env.VITE_API_URL || 'https://evconnect-3ydy.onrender.com';
 
 // Endpoints de la API
 export const API_ENDPOINTS = {
@@ -34,6 +34,11 @@ export const API_ENDPOINTS = {
   REPORTS: {
     SESSIONS: `${API_URL}/api/admin/reports/sessions`,
     SESSION_BY_ID: (id) => `${API_URL}/api/admin/reports/sessions/${id}`,
+  },
+
+  // Sesiones - Monitor
+  SESSIONS: {
+    STOP_BY_CHARGER: (id) => `${API_URL}/api/sessions/stop-by-charger/${id}`,
   },
 };
 
